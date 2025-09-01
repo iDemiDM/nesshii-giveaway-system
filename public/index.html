@@ -1,0 +1,1007 @@
+updateWebhookUrl() {
+                document.getElementById('webhookUrl').textContent = 
+                    `${this.webhookServerUrl}/webhook/eventsub`;
+            }<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch Channel Points Giveaway</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #9146ff, #772ce8);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .setup-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 1rem;
+        }
+        
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+        
+        .btn-primary {
+            background: #00f5ff;
+            color: #333;
+        }
+        
+        .btn-primary:hover {
+            background: #00d4dd;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #00ff88;
+            color: #333;
+        }
+        
+        .btn-success:hover {
+            background: #00dd77;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #ff3838;
+            transform: translateY(-2px);
+        }
+        
+        .btn-warning {
+            background: #ffa726;
+            color: #333;
+        }
+        
+        .btn-warning:hover {
+            background: #ff9800;
+            transform: translateY(-2px);
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid #00ff88;
+        }
+        
+        .status.disconnected {
+            background: rgba(255, 71, 87, 0.2);
+            border: 2px solid #ff4757;
+        }
+        
+        .status.authenticating {
+            background: rgba(255, 167, 38, 0.2);
+            border: 2px solid #ffa726;
+        }
+        
+        .giveaway-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .entries-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .entries-list {
+            max-height: 400px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .entry-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .entry-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .entry-username {
+            font-weight: bold;
+            color: #00f5ff;
+        }
+        
+        .entry-time {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .winner-announcement {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
+            to { box-shadow: 0 0 30px rgba(255, 215, 0, 0.8); }
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00f5ff;
+        }
+        
+        .stat-label {
+            margin-top: 5px;
+            opacity: 0.9;
+        }
+        
+        .webhook-status {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #ffa726;
+        }
+        
+        .webhook-url {
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+        
+        .error-message {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid #ff4757;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            color: #ffcccb;
+        }
+        
+        .success-message {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            color: #ccffcc;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .giveaway-controls {
+                grid-template-columns: 1fr;
+            }
+            .stats {
+                grid-template-columns: 1fr 1fr;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Twitch Channel Points Giveaway 🎮</h1>
+            <p>Production-ready with OAuth, EventSub, and real API integration</p>
+        </div>
+
+        <div class="setup-panel">
+            <h2>🔧 Setup & Connection</h2>
+            
+            <div id="errorContainer"></div>
+            <div id="successContainer"></div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="clientId">Twitch Client ID:</label>
+                    <input type="text" id="clientId" placeholder="Your Twitch App Client ID">
+                </div>
+                <div class="form-group">
+                    <label for="clientSecret">Client Secret:</label>
+                    <input type="password" id="clientSecret" placeholder="Your Twitch App Client Secret">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="redirectUri">Redirect URI:</label>
+                    <input type="text" id="redirectUri" placeholder="https://yoursite.com/callback" 
+                           value="http://localhost:8080/callback">
+                </div>
+                <div class="form-group">
+                    <label for="webhookSecret">Webhook Secret:</label>
+                    <input type="text" id="webhookSecret" placeholder="Your webhook secret" 
+                           value="your-webhook-secret-123">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="rewardTitle">Channel Points Reward Title:</label>
+                    <input type="text" id="rewardTitle" placeholder="Enter Giveaway" value="Enter Giveaway">
+                </div>
+                <div class="form-group">
+                    <label for="rewardCost">Channel Points Cost:</label>
+                    <input type="number" id="rewardCost" placeholder="100" value="100" min="1">
+                </div>
+            </div>
+            
+            <div class="webhook-status">
+                <h4>🌐 Webhook Configuration</h4>
+                <p>Your EventSub webhook URL will be:</p>
+                <div class="webhook-url" id="webhookUrl">Will be auto-generated after deployment</div>
+                <p><small>⚠️ Make sure this URL is publicly accessible and uses HTTPS</small></p>
+            </div>
+            
+            <button class="btn btn-primary" id="oauthBtn">🔐 Authorize with Twitch</button>
+            <button class="btn btn-success" id="connectBtn" style="display: none;">Connect & Setup</button>
+            <button class="btn btn-danger" id="disconnectBtn" style="display: none;">Disconnect</button>
+        </div>
+
+        <div class="status disconnected" id="connectionStatus">
+            ❌ Not connected to Twitch
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalEntries">0</div>
+                <div class="stat-label">Total Entries</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="uniqueUsers">0</div>
+                <div class="stat-label">Unique Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pointsSpent">0</div>
+                <div class="stat-label">Points Spent</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="webhookStatus">❌</div>
+                <div class="stat-label">EventSub Status</div>
+            </div>
+        </div>
+
+        <div class="giveaway-controls">
+            <div class="entries-panel">
+                <h3>📝 Giveaway Management</h3>
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-success" id="startGiveawayBtn">Start Giveaway</button>
+                    <button class="btn btn-danger" id="stopGiveawayBtn" style="display: none;">Stop Giveaway</button>
+                    <button class="btn btn-primary" id="drawWinnerBtn" style="display: none;">Draw Winner</button>
+                    <button class="btn btn-warning" id="clearEntriesBtn">Clear Entries</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="giveawayDescription">Giveaway Description:</label>
+                    <textarea id="giveawayDescription" placeholder="What are you giving away? Enter details here..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="maxEntries">Max Entries (0 = unlimited):</label>
+                    <input type="number" id="maxEntries" value="0" min="0">
+                </div>
+            </div>
+
+            <div class="entries-panel">
+                <h3>👥 Entries (<span id="entriesCount">0</span>)</h3>
+                <div class="entries-list" id="entriesList">
+                    <p style="text-align: center; opacity: 0.7;">No entries yet...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="winnerAnnouncement" class="hidden"></div>
+    </div>
+
+    <script>
+        class TwitchGiveawayManager {
+            constructor() {
+                this.entries = [];
+                this.isConnected = false;
+                this.isGiveawayActive = false;
+                this.accessToken = null;
+                this.refreshToken = null;
+                this.userId = null;
+                this.rewardId = null;
+                this.subscriptionId = null;
+                this.uniqueUsers = new Set();
+                this.apiBaseUrl = 'https://api.twitch.tv/helix';
+                this.webhookServerUrl = window.location.origin;
+                
+                this.initializeEventListeners();
+                this.checkForAuthCallback();
+                this.updateWebhookUrl();
+            }
+            
+            initializeEventListeners() {
+                document.getElementById('oauthBtn').addEventListener('click', () => this.startOAuthFlow());
+                document.getElementById('connectBtn').addEventListener('click', () => this.setupGiveaway());
+                document.getElementById('disconnectBtn').addEventListener('click', () => this.disconnect());
+                document.getElementById('startGiveawayBtn').addEventListener('click', () => this.startGiveaway());
+                document.getElementById('stopGiveawayBtn').addEventListener('click', () => this.stopGiveaway());
+                document.getElementById('drawWinnerBtn').addEventListener('click', () => this.drawWinner());
+                document.getElementById('clearEntriesBtn').addEventListener('click', () => this.clearEntries());
+            }
+            
+            // OAuth Flow Implementation
+            startOAuthFlow() {
+                const clientId = document.getElementById('clientId').value.trim();
+                const redirectUri = document.getElementById('redirectUri').value.trim();
+                
+                if (!clientId || !redirectUri) {
+                    this.showError('Please enter Client ID and Redirect URI');
+                    return;
+                }
+                
+                const scopes = [
+                    'channel:manage:redemptions',
+                    'channel:read:redemptions',
+                    'channel:manage:rewards',
+                    'user:read:email'
+                ].join(' ');
+                
+                const state = this.generateRandomString(32);
+                localStorage.setItem('oauth_state', state);
+                
+                const authUrl = new URL('https://id.twitch.tv/oauth2/authorize');
+                authUrl.searchParams.set('client_id', clientId);
+                authUrl.searchParams.set('redirect_uri', redirectUri);
+                authUrl.searchParams.set('response_type', 'code');
+                authUrl.searchParams.set('scope', scopes);
+                authUrl.searchParams.set('state', state);
+                
+                window.location.href = authUrl.toString();
+            }
+            
+            checkForAuthCallback() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const state = urlParams.get('state');
+                
+                if (code && state) {
+                    const storedState = localStorage.getItem('oauth_state');
+                    if (state === storedState) {
+                        this.handleAuthCallback(code);
+                    } else {
+                        this.showError('OAuth state mismatch. Possible CSRF attack.');
+                    }
+                    
+                    // Clean up URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    localStorage.removeItem('oauth_state');
+                }
+            }
+            
+            async handleAuthCallback(code) {
+                this.updateConnectionStatus('authenticating');
+                
+                try {
+                    const tokens = await this.exchangeCodeForTokens(code);
+                    this.accessToken = tokens.access_token;
+                    this.refreshToken = tokens.refresh_token;
+                    
+                    // Get user info
+                    const userInfo = await this.getCurrentUser();
+                    this.userId = userInfo.id;
+                    
+                    this.showSuccess(`Authenticated as ${userInfo.display_name}!`);
+                    document.getElementById('oauthBtn').style.display = 'none';
+                    document.getElementById('connectBtn').style.display = 'inline-block';
+                    
+                } catch (error) {
+                    console.error('Authentication failed:', error);
+                    this.showError('Authentication failed: ' + error.message);
+                    this.updateConnectionStatus('disconnected');
+                }
+            }
+            
+            async exchangeCodeForTokens(code) {
+                const clientId = document.getElementById('clientId').value.trim();
+                const clientSecret = document.getElementById('clientSecret').value.trim();
+                const redirectUri = document.getElementById('redirectUri').value.trim();
+                
+                const response = await fetch('https://id.twitch.tv/oauth2/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        client_id: clientId,
+                        client_secret: clientSecret,
+                        code: code,
+                        grant_type: 'authorization_code',
+                        redirect_uri: redirectUri
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to exchange code for tokens');
+                }
+                
+                return await response.json();
+            }
+            
+            async getCurrentUser() {
+                const response = await this.makeAuthenticatedRequest('/users');
+                return response.data[0];
+            }
+            
+            // Channel Points Reward Management
+            async setupGiveaway() {
+                try {
+                    this.updateConnectionStatus('authenticating');
+                    
+                    // Create channel points reward
+                    await this.createChannelPointsReward();
+                    
+                    // Setup EventSub webhook
+                    await this.setupEventSubWebhook();
+                    
+                    this.isConnected = true;
+                    this.updateConnectionStatus('connected');
+                    this.showSuccess('Giveaway setup complete! Ready to start.');
+                    
+                    document.getElementById('connectBtn').style.display = 'none';
+                    document.getElementById('disconnectBtn').style.display = 'inline-block';
+                    
+                } catch (error) {
+                    console.error('Setup failed:', error);
+                    this.showError('Setup failed: ' + error.message);
+                    this.updateConnectionStatus('disconnected');
+                }
+            }
+            
+            async createChannelPointsReward() {
+                const rewardTitle = document.getElementById('rewardTitle').value.trim();
+                const rewardCost = parseInt(document.getElementById('rewardCost').value);
+                
+                if (!rewardTitle || !rewardCost) {
+                    throw new Error('Please enter reward title and cost');
+                }
+                
+                const rewardData = {
+                    title: rewardTitle,
+                    cost: rewardCost,
+                    prompt: 'Redeem to enter the giveaway!',
+                    is_enabled: false, // Start disabled
+                    background_color: '#9146FF',
+                    is_user_input_required: false,
+                    is_max_per_stream_enabled: false,
+                    is_max_per_user_per_stream_enabled: true,
+                    max_per_user_per_stream: 1,
+                    is_global_cooldown_enabled: false,
+                    should_redemptions_skip_request_queue: true
+                };
+                
+                const response = await this.makeAuthenticatedRequest(
+                    `/channel_points/custom_rewards?broadcaster_id=${this.userId}`,
+                    'POST',
+                    rewardData
+                );
+                
+                this.rewardId = response.data[0].id;
+                console.log('Created channel points reward:', response.data[0]);
+            }
+            
+            async setupEventSubWebhook() {
+                const webhookUrl = `${this.webhookServerUrl}/webhook/eventsub`;
+                const webhookSecret = document.getElementById('webhookSecret').value.trim();
+                
+                if (!webhookSecret) {
+                    throw new Error('Please enter a webhook secret');
+                }
+                
+                const subscriptionData = {
+                    type: 'channel.channel_points_custom_reward_redemption.add',
+                    version: '1',
+                    condition: {
+                        broadcaster_user_id: this.userId,
+                        reward_id: this.rewardId
+                    },
+                    transport: {
+                        method: 'webhook',
+                        callback: webhookUrl,
+                        secret: webhookSecret
+                    }
+                };
+                
+                const response = await this.makeAuthenticatedRequest(
+                    '/eventsub/subscriptions',
+                    'POST',
+                    subscriptionData
+                );
+                
+                this.subscriptionId = response.data[0].id;
+                document.getElementById('webhookStatus').textContent = '✅';
+                console.log('Created EventSub subscription:', response.data[0]);
+            }
+            
+            // Giveaway Control Methods
+            async startGiveaway() {
+                if (!this.isConnected) {
+                    this.showError('Please connect to Twitch first');
+                    return;
+                }
+                
+                try {
+                    // Enable the channel points reward
+                    await this.updateRewardStatus(true);
+                    
+                    this.isGiveawayActive = true;
+                    this.updateGiveawayControls();
+                    this.showSuccess('Giveaway started! Users can now redeem channel points to enter.');
+                    
+                    // Start real webhook listener
+                    this.startWebhookListener();
+                    
+                } catch (error) {
+                    console.error('Failed to start giveaway:', error);
+                    this.showError('Failed to start giveaway: ' + error.message);
+                }
+            }
+            
+            async stopGiveaway() {
+                try {
+                    // Disable the channel points reward
+                    await this.updateRewardStatus(false);
+                    
+                    this.isGiveawayActive = false;
+                    this.updateGiveawayControls();
+                    this.showSuccess('Giveaway stopped. No more entries will be accepted.');
+                    
+                    if (this.eventSource) {
+                        this.eventSource.close();
+                    }
+                    
+                } catch (error) {
+                    console.error('Failed to stop giveaway:', error);
+                    this.showError('Failed to stop giveaway: ' + error.message);
+                }
+            }
+            
+            async updateRewardStatus(enabled) {
+                const updateData = {
+                    is_enabled: enabled,
+                    is_paused: !enabled
+                };
+                
+                await this.makeAuthenticatedRequest(
+                    `/channel_points/custom_rewards?broadcaster_id=${this.userId}&id=${this.rewardId}`,
+                    'PATCH',
+                    updateData
+                );
+            }
+            
+            // Real Webhook Event Handling
+            startWebhookListener() {
+                // Auto-detect the current server URL
+                const webhookServerUrl = window.location.origin;
+                
+                // Connect to Server-Sent Events stream
+                this.eventSource = new EventSource(`${webhookServerUrl}/events`);
+                
+                this.eventSource.onopen = () => {
+                    console.log('Connected to webhook server');
+                    document.getElementById('webhookStatus').textContent = '✅';
+                };
+                
+                this.eventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        this.handleWebhookEvent(data);
+                    } catch (error) {
+                        console.error('Error parsing webhook event:', error);
+                    }
+                };
+                
+                this.eventSource.onerror = (error) => {
+                    console.error('EventSource error:', error);
+                    document.getElementById('webhookStatus').textContent = '❌';
+                    
+                    // Try to reconnect after 5 seconds
+                    setTimeout(() => {
+                        if (this.isGiveawayActive) {
+                            this.startWebhookListener();
+                        }
+                    }, 5000);
+                };
+            }
+            
+            handleWebhookEvent(data) {
+                switch (data.type) {
+                    case 'giveaway_entry':
+                        if (this.isGiveawayActive && this.rewardId === data.reward_id) {
+                            const maxEntries = parseInt(document.getElementById('maxEntries').value) || 0;
+                            if (maxEntries > 0 && this.entries.length >= maxEntries) {
+                                this.stopGiveaway();
+                                this.showSuccess(`Maximum entries (${maxEntries}) reached! Giveaway stopped.`);
+                                return;
+                            }
+                            
+                            this.handleRedemptionEvent(data.username, data);
+                        }
+                        break;
+                        
+                    case 'connected':
+                        this.showSuccess('Connected to webhook server!');
+                        break;
+                        
+                    case 'server_shutdown':
+                        this.showError('Webhook server disconnected');
+                        document.getElementById('webhookStatus').textContent = '❌';
+                        break;
+                        
+                    case 'test_entry':
+                        // Handle test entries from server
+                        this.handleRedemptionEvent(data.username, data);
+                        break;
+                        
+                    default:
+                        console.log('Unknown webhook event:', data);
+                }
+            }
+            
+            handleRedemptionEvent(username, eventData = null) {
+                // This is called when your server receives a webhook
+                const entry = {
+                    username: username,
+                    timestamp: new Date(eventData?.redeemed_at || Date.now()),
+                    id: eventData?.redemption_id || (Date.now() + Math.random()),
+                    user_id: eventData?.user_id || null,
+                    reward_cost: eventData?.reward_cost || parseInt(document.getElementById('rewardCost').value)
+                };
+                
+                this.entries.push(entry);
+                this.uniqueUsers.add(username);
+                this.updateEntriesList();
+                this.updateStats();
+                
+                console.log(`New entry via EventSub: ${username}`);
+                this.showSuccess(`${username} entered the giveaway!`, 3000);
+            }
+            
+            // API Helper Methods
+            async makeAuthenticatedRequest(endpoint, method = 'GET', body = null) {
+                const url = `${this.apiBaseUrl}${endpoint}`;
+                const clientId = document.getElementById('clientId').value.trim();
+                
+                const options = {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${this.accessToken}`,
+                        'Client-Id': clientId,
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(url, options);
+                
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(`API Error: ${response.status} - ${error}`);
+                }
+                
+                return await response.json();
+            }
+            
+            // UI Update Methods
+            updateEntriesList() {
+                const entriesList = document.getElementById('entriesList');
+                
+                if (this.entries.length === 0) {
+                    entriesList.innerHTML = '<p style="text-align: center; opacity: 0.7;">No entries yet...</p>';
+                    return;
+                }
+                
+                const entriesHTML = this.entries
+                    .slice(-20)
+                    .reverse()
+                    .map(entry => `
+                        <div class="entry-item">
+                            <span class="entry-username">${entry.username}</span>
+                            <span class="entry-time">${entry.timestamp.toLocaleTimeString()}</span>
+                        </div>
+                    `).join('');
+                
+                entriesList.innerHTML = entriesHTML;
+            }
+            
+            updateStats() {
+                document.getElementById('totalEntries').textContent = this.entries.length;
+                document.getElementById('uniqueUsers').textContent = this.uniqueUsers.size;
+                document.getElementById('entriesCount').textContent = this.entries.length;
+                
+                const rewardCost = parseInt(document.getElementById('rewardCost').value) || 100;
+                document.getElementById('pointsSpent').textContent = this.entries.length * rewardCost;
+            }
+            
+            updateConnectionStatus(status) {
+                const statusEl = document.getElementById('connectionStatus');
+                
+                switch (status) {
+                    case 'connected':
+                        statusEl.className = 'status connected';
+                        statusEl.innerHTML = '✅ Connected to Twitch - EventSub Active';
+                        break;
+                    case 'authenticating':
+                        statusEl.className = 'status authenticating';
+                        statusEl.innerHTML = '<span class="loading"></span> Setting up connection...';
+                        break;
+                    default:
+                        statusEl.className = 'status disconnected';
+                        statusEl.innerHTML = '❌ Not connected to Twitch';
+                }
+            }
+            
+            updateGiveawayControls() {
+                const startBtn = document.getElementById('startGiveawayBtn');
+                const stopBtn = document.getElementById('stopGiveawayBtn');
+                const drawBtn = document.getElementById('drawWinnerBtn');
+                
+                if (this.isGiveawayActive) {
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                    drawBtn.style.display = 'inline-block';
+                } else {
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                    drawBtn.style.display = this.entries.length > 0 ? 'inline-block' : 'none';
+                }
+            }
+            
+            // Winner Selection
+            drawWinner() {
+                if (this.entries.length === 0) {
+                    this.showError('No entries to draw from!');
+                    return;
+                }
+                
+                const randomIndex = Math.floor(Math.random() * this.entries.length);
+                const winner = this.entries[randomIndex];
+                
+                this.showWinnerAnnouncement(winner);
+            }
+            
+            showWinnerAnnouncement(winner) {
+                const announcement = document.getElementById('winnerAnnouncement');
+                announcement.innerHTML = `
+                    🎉 WINNER WINNER! 🎉<br>
+                    <span style="font-size: 1.8rem; color: #9146ff;">${winner.username}</span><br>
+                    Congratulations on winning the giveaway!<br>
+                    <small>Entered at ${winner.timestamp.toLocaleString()}</small>
+                `;
+                announcement.className = 'winner-announcement';
+                
+                setTimeout(() => {
+                    announcement.className = 'winner-announcement hidden';
+                }, 15000);
+            }
+            
+            // Utility Methods
+            clearEntries() {
+                if (confirm('Are you sure you want to clear all entries?')) {
+                    this.entries = [];
+                    this.uniqueUsers.clear();
+                    this.updateEntriesList();
+                    this.updateStats();
+                    document.getElementById('winnerAnnouncement').className = 'winner-announcement hidden';
+                    this.showSuccess('All entries cleared.');
+                }
+            }
+            
+            async disconnect() {
+                try {
+                    // Clean up EventSub subscription
+                    if (this.subscriptionId) {
+                        await this.makeAuthenticatedRequest(
+                            `/eventsub/subscriptions?id=${this.subscriptionId}`,
+                            'DELETE'
+                        );
+                    }
+                    
+                    // Delete channel points reward
+                    if (this.rewardId) {
+                        await this.makeAuthenticatedRequest(
+                            `/channel_points/custom_rewards?broadcaster_id=${this.userId}&id=${this.rewardId}`,
+                            'DELETE'
+                        );
+                    }
+                    
+                } catch (error) {
+                    console.error('Cleanup error:', error);
+                }
+                
+                // Reset state
+                this.isConnected = false;
+                this.isGiveawayActive = false;
+                this.accessToken = null;
+                this.refreshToken = null;
+                this.userId = null;
+                this.rewardId = null;
+                this.subscriptionId = null;
+                
+                this.updateConnectionStatus('disconnected');
+                this.updateGiveawayControls();
+                
+                document.getElementById('oauthBtn').style.display = 'inline-block';
+                document.getElementById('connectBtn').style.display = 'none';
+                document.getElementById('disconnectBtn').style.display = 'none';
+                document.getElementById('webhookStatus').textContent = '❌';
+                
+                if (this.eventSource) {
+                    this.eventSource.close();
+                }
+                
+                this.showSuccess('Disconnected from Twitch.');
+            }
+            
+            showError(message) {
+                const container = document.getElementById('errorContainer');
+                container.innerHTML = `<div class="error-message">${message}</div>`;
+                setTimeout(() => container.innerHTML = '', 10000);
+            }
+            
+            showSuccess(message, timeout = 5000) {
+                const container = document.getElementById('successContainer');
+                container.innerHTML = `<div class="success-message">${message}</div>`;
+                setTimeout(() => container.innerHTML = '', timeout);
+            }
+            
+            generateRandomString(length) {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let result = '';
+                for (let i = 0; i < length; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return result;
+            }
+        }
+        
+        // Initialize the giveaway manager
+        const giveawayManager = new TwitchGiveawayManager();
+        giveawayManager.updateStats();
+    </script>
+</body>
+</html>
