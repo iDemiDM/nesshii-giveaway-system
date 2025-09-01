@@ -74,6 +74,31 @@ app.get('/api/config', (req, res) => {
     });
 });
 
+// OAuth callback handler
+app.get('/callback', (req, res) => {
+    const { code, state, error, error_description } = req.query;
+    
+    console.log('OAuth callback received:', { code: !!code, state: !!state, error });
+    
+    // Handle OAuth errors
+    if (error) {
+        console.error('OAuth error:', error, error_description);
+        return res.redirect(`/?error=${encodeURIComponent(error_description || error)}`);
+    }
+    
+    // Handle successful OAuth callback
+    if (code && state) {
+        // Redirect back to main page with the code and state
+        // The frontend JavaScript will handle the token exchange
+        console.log('OAuth success, redirecting with code');
+        return res.redirect(`/?code=${code}&state=${state}`);
+    }
+    
+    // Handle missing parameters
+    console.error('OAuth callback missing parameters');
+    return res.redirect('/?error=missing_oauth_parameters');
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
