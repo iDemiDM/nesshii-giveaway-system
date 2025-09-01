@@ -1,7 +1,4 @@
-updateWebhookUrl() {
-                document.getElementById('webhookUrl').textContent = 
-                    `${this.webhookServerUrl}/webhook/eventsub`;
-            }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -38,6 +35,47 @@ updateWebhookUrl() {
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
+        .login-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .login-panel.hidden {
+            display: none;
+        }
+        
+        .twitch-login-btn {
+            background: #9146ff;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+        }
+        
+        .twitch-login-btn:hover {
+            background: #7c3aed;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .twitch-logo {
+            width: 30px;
+            height: 30px;
+        }
+        
         .setup-panel {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 15px;
@@ -45,6 +83,34 @@ updateWebhookUrl() {
             margin-bottom: 30px;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #00f5ff;
+        }
+        
+        .user-details h3 {
+            margin: 0;
+            color: #00f5ff;
+        }
+        
+        .user-details p {
+            margin: 0;
+            opacity: 0.8;
+            font-size: 0.9rem;
         }
         
         .form-group {
@@ -58,7 +124,7 @@ updateWebhookUrl() {
             font-size: 1.1rem;
         }
         
-        .form-group input, .form-group textarea, .form-group select {
+        .form-group input, .form-group textarea {
             width: 100%;
             padding: 12px;
             border: none;
@@ -148,7 +214,7 @@ updateWebhookUrl() {
             border: 2px solid #ff4757;
         }
         
-        .status.authenticating {
+        .status.setting-up {
             background: rgba(255, 167, 38, 0.2);
             border: 2px solid #ffa726;
         }
@@ -250,23 +316,6 @@ updateWebhookUrl() {
             opacity: 0.9;
         }
         
-        .webhook-status {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-left: 4px solid #ffa726;
-        }
-        
-        .webhook-url {
-            font-family: monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            word-break: break-all;
-        }
-        
         .error-message {
             background: rgba(255, 71, 87, 0.2);
             border: 1px solid #ff4757;
@@ -303,6 +352,21 @@ updateWebhookUrl() {
             to { transform: rotate(360deg); }
         }
         
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
         @media (max-width: 768px) {
             .giveaway-controls {
                 grid-template-columns: 1fr;
@@ -320,170 +384,186 @@ updateWebhookUrl() {
     <div class="container">
         <div class="header">
             <h1>🎮 Twitch Channel Points Giveaway 🎮</h1>
-            <p>Production-ready with OAuth, EventSub, and real API integration</p>
+            <p>One-click setup with your Twitch account - no technical knowledge required!</p>
         </div>
 
-        <div class="setup-panel">
-            <h2>🔧 Setup & Connection</h2>
+        <!-- Login Panel (shown when not authenticated) -->
+        <div class="login-panel" id="loginPanel">
+            <h2>🔐 Sign in with Twitch to Get Started</h2>
+            <p style="margin: 20px 0; opacity: 0.9;">
+                Connect your Twitch account to automatically set up giveaways.<br>
+                We'll handle all the technical stuff - you just focus on streaming!
+            </p>
             
-            <div id="errorContainer"></div>
-            <div id="successContainer"></div>
+            <button class="twitch-login-btn" id="twitchLoginBtn">
+                <svg class="twitch-logo" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+                </svg>
+                Sign in with Twitch
+            </button>
             
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="clientId">Twitch Client ID:</label>
-                    <input type="text" id="clientId" placeholder="Your Twitch App Client ID">
-                </div>
-                <div class="form-group">
-                    <label for="clientSecret">Client Secret:</label>
-                    <input type="password" id="clientSecret" placeholder="Your Twitch App Client Secret">
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="redirectUri">Redirect URI:</label>
-                    <input type="text" id="redirectUri" placeholder="https://yoursite.com/callback" 
-                           value="http://localhost:8080/callback">
-                </div>
-                <div class="form-group">
-                    <label for="webhookSecret">Webhook Secret:</label>
-                    <input type="text" id="webhookSecret" placeholder="Your webhook secret" 
-                           value="your-webhook-secret-123">
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="rewardTitle">Channel Points Reward Title:</label>
-                    <input type="text" id="rewardTitle" placeholder="Enter Giveaway" value="Enter Giveaway">
-                </div>
-                <div class="form-group">
-                    <label for="rewardCost">Channel Points Cost:</label>
-                    <input type="number" id="rewardCost" placeholder="100" value="100" min="1">
-                </div>
-            </div>
-            
-            <div class="webhook-status">
-                <h4>🌐 Webhook Configuration</h4>
-                <p>Your EventSub webhook URL will be:</p>
-                <div class="webhook-url" id="webhookUrl">Will be auto-generated after deployment</div>
-                <p><small>⚠️ Make sure this URL is publicly accessible and uses HTTPS</small></p>
-            </div>
-            
-            <button class="btn btn-primary" id="oauthBtn">🔐 Authorize with Twitch</button>
-            <button class="btn btn-success" id="connectBtn" style="display: none;">Connect & Setup</button>
-            <button class="btn btn-danger" id="disconnectBtn" style="display: none;">Disconnect</button>
+            <p style="margin-top: 20px; font-size: 0.9rem; opacity: 0.7;">
+                ✅ Secure OAuth - we never see your password<br>
+                ✅ Auto-creates channel points rewards<br>
+                ✅ Real-time giveaway management
+            </p>
         </div>
 
-        <div class="status disconnected" id="connectionStatus">
-            ❌ Not connected to Twitch
-        </div>
-
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-number" id="totalEntries">0</div>
-                <div class="stat-label">Total Entries</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="uniqueUsers">0</div>
-                <div class="stat-label">Unique Users</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="pointsSpent">0</div>
-                <div class="stat-label">Points Spent</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="webhookStatus">❌</div>
-                <div class="stat-label">EventSub Status</div>
-            </div>
-        </div>
-
-        <div class="giveaway-controls">
-            <div class="entries-panel">
-                <h3>📝 Giveaway Management</h3>
-                <div style="margin-bottom: 20px;">
-                    <button class="btn btn-success" id="startGiveawayBtn">Start Giveaway</button>
-                    <button class="btn btn-danger" id="stopGiveawayBtn" style="display: none;">Stop Giveaway</button>
-                    <button class="btn btn-primary" id="drawWinnerBtn" style="display: none;">Draw Winner</button>
-                    <button class="btn btn-warning" id="clearEntriesBtn">Clear Entries</button>
+        <!-- Main App (shown when authenticated) -->
+        <div class="app-content hidden" id="appContent">
+            <!-- User Info Panel -->
+            <div class="setup-panel">
+                <div class="user-info" id="userInfo">
+                    <!-- User details populated by JavaScript -->
                 </div>
                 
-                <div class="form-group">
-                    <label for="giveawayDescription">Giveaway Description:</label>
-                    <textarea id="giveawayDescription" placeholder="What are you giving away? Enter details here..."></textarea>
+                <div id="errorContainer"></div>
+                <div id="successContainer"></div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rewardTitle">Giveaway Reward Name:</label>
+                        <input type="text" id="rewardTitle" placeholder="Enter Giveaway" value="🎉 Enter Giveaway">
+                    </div>
+                    <div class="form-group">
+                        <label for="rewardCost">Channel Points Cost:</label>
+                        <input type="number" id="rewardCost" placeholder="100" value="100" min="1" max="1000000">
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="maxEntries">Max Entries (0 = unlimited):</label>
-                    <input type="number" id="maxEntries" value="0" min="0">
+                <button class="btn btn-primary" id="setupGiveawayBtn">🚀 Set Up My Giveaway</button>
+                <button class="logout-btn" id="logoutBtn" style="float: right;">Sign Out</button>
+            </div>
+
+            <div class="status disconnected" id="connectionStatus">
+                🔧 Click "Set Up My Giveaway" to create your channel points reward
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalEntries">0</div>
+                    <div class="stat-label">Total Entries</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="uniqueUsers">0</div>
+                    <div class="stat-label">Unique Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pointsSpent">0</div>
+                    <div class="stat-label">Points Spent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="giveawayStatus">⚪</div>
+                    <div class="stat-label">Giveaway Status</div>
                 </div>
             </div>
 
-            <div class="entries-panel">
-                <h3>👥 Entries (<span id="entriesCount">0</span>)</h3>
-                <div class="entries-list" id="entriesList">
-                    <p style="text-align: center; opacity: 0.7;">No entries yet...</p>
+            <div class="giveaway-controls">
+                <div class="entries-panel">
+                    <h3>📝 Giveaway Controls</h3>
+                    <div style="margin-bottom: 20px;">
+                        <button class="btn btn-success" id="startGiveawayBtn">▶️ Start Giveaway</button>
+                        <button class="btn btn-danger hidden" id="stopGiveawayBtn">⏹️ Stop Giveaway</button>
+                        <button class="btn btn-primary hidden" id="drawWinnerBtn">🎲 Draw Winner</button>
+                        <button class="btn btn-warning" id="clearEntriesBtn">🗑️ Clear Entries</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="giveawayDescription">What are you giving away?</label>
+                        <textarea id="giveawayDescription" placeholder="Describe your prize (e.g., $50 Steam Gift Card, Custom Art Commission, Discord VIP Role, etc.)"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maxEntries">Max Entries (0 = unlimited):</label>
+                        <input type="number" id="maxEntries" value="0" min="0" max="10000">
+                    </div>
+                </div>
+
+                <div class="entries-panel">
+                    <h3>👥 Live Entries (<span id="entriesCount">0</span>)</h3>
+                    <div class="entries-list" id="entriesList">
+                        <p style="text-align: center; opacity: 0.7;">No entries yet - start your giveaway to see participants!</p>
+                    </div>
                 </div>
             </div>
+
+            <div id="winnerAnnouncement" class="hidden"></div>
         </div>
-
-        <div id="winnerAnnouncement" class="hidden"></div>
     </div>
 
     <script>
-        class TwitchGiveawayManager {
+        class SimpleTwitchGiveaway {
             constructor() {
+                // App configuration - using your hosted service
+                this.CLIENT_ID = 'YOUR_APP_CLIENT_ID'; // You'll set this to your Twitch app
+                this.REDIRECT_URI = window.location.origin;
+                this.SERVER_URL = window.location.origin;
+                
+                // State management
                 this.entries = [];
-                this.isConnected = false;
+                this.isAuthenticated = false;
+                this.isGiveawaySetup = false;
                 this.isGiveawayActive = false;
                 this.accessToken = null;
-                this.refreshToken = null;
-                this.userId = null;
+                this.userInfo = null;
                 this.rewardId = null;
-                this.subscriptionId = null;
                 this.uniqueUsers = new Set();
-                this.apiBaseUrl = 'https://api.twitch.tv/helix';
-                this.webhookServerUrl = window.location.origin;
+                this.eventSource = null;
                 
-                this.initializeEventListeners();
-                this.checkForAuthCallback();
-                this.updateWebhookUrl();
+                this.initializeApp();
             }
             
-            initializeEventListeners() {
-                document.getElementById('oauthBtn').addEventListener('click', () => this.startOAuthFlow());
-                document.getElementById('connectBtn').addEventListener('click', () => this.setupGiveaway());
-                document.getElementById('disconnectBtn').addEventListener('click', () => this.disconnect());
+            initializeApp() {
+                this.setupEventListeners();
+                this.checkAuthentication();
+                this.updateStats();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('twitchLoginBtn').addEventListener('click', () => this.startTwitchAuth());
+                document.getElementById('logoutBtn').addEventListener('click', () => this.logout());
+                document.getElementById('setupGiveawayBtn').addEventListener('click', () => this.setupGiveaway());
                 document.getElementById('startGiveawayBtn').addEventListener('click', () => this.startGiveaway());
                 document.getElementById('stopGiveawayBtn').addEventListener('click', () => this.stopGiveaway());
                 document.getElementById('drawWinnerBtn').addEventListener('click', () => this.drawWinner());
                 document.getElementById('clearEntriesBtn').addEventListener('click', () => this.clearEntries());
             }
             
-            // OAuth Flow Implementation
-            startOAuthFlow() {
-                const clientId = document.getElementById('clientId').value.trim();
-                const redirectUri = document.getElementById('redirectUri').value.trim();
+            // Authentication Flow
+            checkAuthentication() {
+                // Check for OAuth callback
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const state = urlParams.get('state');
                 
-                if (!clientId || !redirectUri) {
-                    this.showError('Please enter Client ID and Redirect URI');
+                if (code && state) {
+                    this.handleAuthCallback(code, state);
                     return;
                 }
                 
+                // Check for stored token
+                const storedToken = localStorage.getItem('twitch_access_token');
+                if (storedToken) {
+                    this.accessToken = storedToken;
+                    this.validateAndLoadUser();
+                } else {
+                    this.showLoginPanel();
+                }
+            }
+            
+            startTwitchAuth() {
+                const state = this.generateRandomString(32);
+                localStorage.setItem('auth_state', state);
+                
                 const scopes = [
                     'channel:manage:redemptions',
-                    'channel:read:redemptions',
-                    'channel:manage:rewards',
-                    'user:read:email'
+                    'channel:read:redemptions', 
+                    'channel:manage:rewards'
                 ].join(' ');
                 
-                const state = this.generateRandomString(32);
-                localStorage.setItem('oauth_state', state);
-                
                 const authUrl = new URL('https://id.twitch.tv/oauth2/authorize');
-                authUrl.searchParams.set('client_id', clientId);
-                authUrl.searchParams.set('redirect_uri', redirectUri);
+                authUrl.searchParams.set('client_id', this.CLIENT_ID);
+                authUrl.searchParams.set('redirect_uri', this.REDIRECT_URI);
                 authUrl.searchParams.set('response_type', 'code');
                 authUrl.searchParams.set('scope', scopes);
                 authUrl.searchParams.set('state', state);
@@ -491,347 +571,320 @@ updateWebhookUrl() {
                 window.location.href = authUrl.toString();
             }
             
-            checkForAuthCallback() {
-                const urlParams = new URLSearchParams(window.location.search);
-                const code = urlParams.get('code');
-                const state = urlParams.get('state');
-                
-                if (code && state) {
-                    const storedState = localStorage.getItem('oauth_state');
-                    if (state === storedState) {
-                        this.handleAuthCallback(code);
-                    } else {
-                        this.showError('OAuth state mismatch. Possible CSRF attack.');
-                    }
-                    
-                    // Clean up URL
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    localStorage.removeItem('oauth_state');
-                }
-            }
-            
-            async handleAuthCallback(code) {
-                this.updateConnectionStatus('authenticating');
-                
-                try {
-                    const tokens = await this.exchangeCodeForTokens(code);
-                    this.accessToken = tokens.access_token;
-                    this.refreshToken = tokens.refresh_token;
-                    
-                    // Get user info
-                    const userInfo = await this.getCurrentUser();
-                    this.userId = userInfo.id;
-                    
-                    this.showSuccess(`Authenticated as ${userInfo.display_name}!`);
-                    document.getElementById('oauthBtn').style.display = 'none';
-                    document.getElementById('connectBtn').style.display = 'inline-block';
-                    
-                } catch (error) {
-                    console.error('Authentication failed:', error);
-                    this.showError('Authentication failed: ' + error.message);
-                    this.updateConnectionStatus('disconnected');
-                }
-            }
-            
-            async exchangeCodeForTokens(code) {
-                const clientId = document.getElementById('clientId').value.trim();
-                const clientSecret = document.getElementById('clientSecret').value.trim();
-                const redirectUri = document.getElementById('redirectUri').value.trim();
-                
-                const response = await fetch('https://id.twitch.tv/oauth2/token', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({
-                        client_id: clientId,
-                        client_secret: clientSecret,
-                        code: code,
-                        grant_type: 'authorization_code',
-                        redirect_uri: redirectUri
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to exchange code for tokens');
-                }
-                
-                return await response.json();
-            }
-            
-            async getCurrentUser() {
-                const response = await this.makeAuthenticatedRequest('/users');
-                return response.data[0];
-            }
-            
-            // Channel Points Reward Management
-            async setupGiveaway() {
-                try {
-                    this.updateConnectionStatus('authenticating');
-                    
-                    // Create channel points reward
-                    await this.createChannelPointsReward();
-                    
-                    // Setup EventSub webhook
-                    await this.setupEventSubWebhook();
-                    
-                    this.isConnected = true;
-                    this.updateConnectionStatus('connected');
-                    this.showSuccess('Giveaway setup complete! Ready to start.');
-                    
-                    document.getElementById('connectBtn').style.display = 'none';
-                    document.getElementById('disconnectBtn').style.display = 'inline-block';
-                    
-                } catch (error) {
-                    console.error('Setup failed:', error);
-                    this.showError('Setup failed: ' + error.message);
-                    this.updateConnectionStatus('disconnected');
-                }
-            }
-            
-            async createChannelPointsReward() {
-                const rewardTitle = document.getElementById('rewardTitle').value.trim();
-                const rewardCost = parseInt(document.getElementById('rewardCost').value);
-                
-                if (!rewardTitle || !rewardCost) {
-                    throw new Error('Please enter reward title and cost');
-                }
-                
-                const rewardData = {
-                    title: rewardTitle,
-                    cost: rewardCost,
-                    prompt: 'Redeem to enter the giveaway!',
-                    is_enabled: false, // Start disabled
-                    background_color: '#9146FF',
-                    is_user_input_required: false,
-                    is_max_per_stream_enabled: false,
-                    is_max_per_user_per_stream_enabled: true,
-                    max_per_user_per_stream: 1,
-                    is_global_cooldown_enabled: false,
-                    should_redemptions_skip_request_queue: true
-                };
-                
-                const response = await this.makeAuthenticatedRequest(
-                    `/channel_points/custom_rewards?broadcaster_id=${this.userId}`,
-                    'POST',
-                    rewardData
-                );
-                
-                this.rewardId = response.data[0].id;
-                console.log('Created channel points reward:', response.data[0]);
-            }
-            
-            async setupEventSubWebhook() {
-                const webhookUrl = `${this.webhookServerUrl}/webhook/eventsub`;
-                const webhookSecret = document.getElementById('webhookSecret').value.trim();
-                
-                if (!webhookSecret) {
-                    throw new Error('Please enter a webhook secret');
-                }
-                
-                const subscriptionData = {
-                    type: 'channel.channel_points_custom_reward_redemption.add',
-                    version: '1',
-                    condition: {
-                        broadcaster_user_id: this.userId,
-                        reward_id: this.rewardId
-                    },
-                    transport: {
-                        method: 'webhook',
-                        callback: webhookUrl,
-                        secret: webhookSecret
-                    }
-                };
-                
-                const response = await this.makeAuthenticatedRequest(
-                    '/eventsub/subscriptions',
-                    'POST',
-                    subscriptionData
-                );
-                
-                this.subscriptionId = response.data[0].id;
-                document.getElementById('webhookStatus').textContent = '✅';
-                console.log('Created EventSub subscription:', response.data[0]);
-            }
-            
-            // Giveaway Control Methods
-            async startGiveaway() {
-                if (!this.isConnected) {
-                    this.showError('Please connect to Twitch first');
+            async handleAuthCallback(code, state) {
+                const storedState = localStorage.getItem('auth_state');
+                if (state !== storedState) {
+                    this.showError('Authentication failed: Invalid state');
                     return;
                 }
                 
                 try {
-                    // Enable the channel points reward
-                    await this.updateRewardStatus(true);
+                    // Exchange code for token via your server
+                    const response = await fetch(`${this.SERVER_URL}/api/oauth/exchange`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code, redirect_uri: this.REDIRECT_URI })
+                    });
+                    
+                    if (!response.ok) throw new Error('Token exchange failed');
+                    
+                    const data = await response.json();
+                    this.accessToken = data.access_token;
+                    
+                    // Store token securely
+                    localStorage.setItem('twitch_access_token', this.accessToken);
+                    
+                    // Clean up URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    localStorage.removeItem('auth_state');
+                    
+                    await this.loadUserInfo();
+                    this.showAppContent();
+                    
+                } catch (error) {
+                    console.error('Auth callback failed:', error);
+                    this.showError('Authentication failed. Please try again.');
+                    this.showLoginPanel();
+                }
+            }
+            
+            async validateAndLoadUser() {
+                try {
+                    await this.loadUserInfo();
+                    this.showAppContent();
+                } catch (error) {
+                    // Token invalid, clear and show login
+                    localStorage.removeItem('twitch_access_token');
+                    this.showLoginPanel();
+                }
+            }
+            
+            async loadUserInfo() {
+                const response = await this.makeApiRequest('/users');
+                this.userInfo = response.data[0];
+                this.isAuthenticated = true;
+                this.displayUserInfo();
+            }
+            
+            // Giveaway Setup
+            async setupGiveaway() {
+                if (!this.isAuthenticated) {
+                    this.showError('Please sign in with Twitch first');
+                    return;
+                }
+                
+                try {
+                    this.updateStatus('setting-up', '🔧 Setting up your giveaway...');
+                    
+                    // Create channel points reward via your server
+                    const rewardData = {
+                        title: document.getElementById('rewardTitle').value.trim(),
+                        cost: parseInt(document.getElementById('rewardCost').value),
+                        prompt: 'Redeem to enter the giveaway!',
+                        user_id: this.userInfo.id,
+                        access_token: this.accessToken
+                    };
+                    
+                    const response = await fetch(`${this.SERVER_URL}/api/rewards/create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(rewardData)
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to create reward');
+                    
+                    const result = await response.json();
+                    this.rewardId = result.reward_id;
+                    
+                    // Setup webhook subscription via your server
+                    await this.setupWebhookSubscription();
+                    
+                    this.isGiveawaySetup = true;
+                    this.updateStatus('connected', '✅ Giveaway ready! Click "Start Giveaway" when you\'re ready.');
+                    this.showSuccess('Giveaway set up successfully! Your viewers can now see the reward.');
+                    
+                    // Enable giveaway controls
+                    document.getElementById('startGiveawayBtn').classList.remove('hidden');
+                    
+                } catch (error) {
+                    console.error('Setup failed:', error);
+                    this.showError('Setup failed: ' + error.message);
+                    this.updateStatus('disconnected', '❌ Setup failed - please try again');
+                }
+            }
+            
+            async setupWebhookSubscription() {
+                const subscriptionData = {
+                    user_id: this.userInfo.id,
+                    reward_id: this.rewardId,
+                    access_token: this.accessToken
+                };
+                
+                const response = await fetch(`${this.SERVER_URL}/api/webhooks/subscribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(subscriptionData)
+                });
+                
+                if (!response.ok) throw new Error('Webhook subscription failed');
+                
+                // Start listening for events
+                this.startEventListener();
+            }
+            
+            // Giveaway Controls
+            async startGiveaway() {
+                if (!this.isGiveawaySetup) {
+                    this.showError('Please set up your giveaway first');
+                    return;
+                }
+                
+                try {
+                    // Enable the reward via your server
+                    await fetch(`${this.SERVER_URL}/api/rewards/enable`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            user_id: this.userInfo.id,
+                            reward_id: this.rewardId,
+                            access_token: this.accessToken
+                        })
+                    });
                     
                     this.isGiveawayActive = true;
                     this.updateGiveawayControls();
-                    this.showSuccess('Giveaway started! Users can now redeem channel points to enter.');
                     
-                    // Start real webhook listener
-                    this.startWebhookListener();
+                    document.getElementById('giveawayStatus').textContent = '🟢';
+                    this.showSuccess('🎉 Giveaway started! Your viewers can now redeem channel points to enter.');
                     
                 } catch (error) {
-                    console.error('Failed to start giveaway:', error);
                     this.showError('Failed to start giveaway: ' + error.message);
                 }
             }
             
             async stopGiveaway() {
                 try {
-                    // Disable the channel points reward
-                    await this.updateRewardStatus(false);
+                    // Disable the reward via your server
+                    await fetch(`${this.SERVER_URL}/api/rewards/disable`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            user_id: this.userInfo.id,
+                            reward_id: this.rewardId,
+                            access_token: this.accessToken
+                        })
+                    });
                     
                     this.isGiveawayActive = false;
                     this.updateGiveawayControls();
-                    this.showSuccess('Giveaway stopped. No more entries will be accepted.');
                     
-                    if (this.eventSource) {
-                        this.eventSource.close();
-                    }
+                    document.getElementById('giveawayStatus').textContent = '🔴';
+                    this.showSuccess('Giveaway stopped. No new entries will be accepted.');
                     
                 } catch (error) {
-                    console.error('Failed to stop giveaway:', error);
                     this.showError('Failed to stop giveaway: ' + error.message);
                 }
             }
             
-            async updateRewardStatus(enabled) {
-                const updateData = {
-                    is_enabled: enabled,
-                    is_paused: !enabled
-                };
-                
-                await this.makeAuthenticatedRequest(
-                    `/channel_points/custom_rewards?broadcaster_id=${this.userId}&id=${this.rewardId}`,
-                    'PATCH',
-                    updateData
-                );
-            }
-            
-            // Real Webhook Event Handling
-            startWebhookListener() {
-                // Auto-detect the current server URL
-                const webhookServerUrl = window.location.origin;
-                
-                // Connect to Server-Sent Events stream
-                this.eventSource = new EventSource(`${webhookServerUrl}/events`);
-                
-                this.eventSource.onopen = () => {
-                    console.log('Connected to webhook server');
-                    document.getElementById('webhookStatus').textContent = '✅';
-                };
+            // Event Handling
+            startEventListener() {
+                this.eventSource = new EventSource(`${this.SERVER_URL}/events/${this.userInfo.id}`);
                 
                 this.eventSource.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
-                        this.handleWebhookEvent(data);
+                        this.handleRealtimeEvent(data);
                     } catch (error) {
-                        console.error('Error parsing webhook event:', error);
+                        console.error('Error parsing event:', error);
                     }
                 };
                 
                 this.eventSource.onerror = (error) => {
                     console.error('EventSource error:', error);
-                    document.getElementById('webhookStatus').textContent = '❌';
-                    
-                    // Try to reconnect after 5 seconds
+                    // Auto-reconnect after 5 seconds
                     setTimeout(() => {
-                        if (this.isGiveawayActive) {
-                            this.startWebhookListener();
+                        if (this.isAuthenticated && this.eventSource.readyState === EventSource.CLOSED) {
+                            this.startEventListener();
                         }
                     }, 5000);
                 };
             }
             
-            handleWebhookEvent(data) {
+            handleRealtimeEvent(data) {
                 switch (data.type) {
                     case 'giveaway_entry':
-                        if (this.isGiveawayActive && this.rewardId === data.reward_id) {
-                            const maxEntries = parseInt(document.getElementById('maxEntries').value) || 0;
-                            if (maxEntries > 0 && this.entries.length >= maxEntries) {
-                                this.stopGiveaway();
-                                this.showSuccess(`Maximum entries (${maxEntries}) reached! Giveaway stopped.`);
-                                return;
-                            }
-                            
-                            this.handleRedemptionEvent(data.username, data);
+                        if (this.isGiveawayActive && data.reward_id === this.rewardId) {
+                            this.addEntry(data);
                         }
                         break;
                         
-                    case 'connected':
-                        this.showSuccess('Connected to webhook server!');
-                        break;
-                        
-                    case 'server_shutdown':
-                        this.showError('Webhook server disconnected');
-                        document.getElementById('webhookStatus').textContent = '❌';
-                        break;
-                        
-                    case 'test_entry':
-                        // Handle test entries from server
-                        this.handleRedemptionEvent(data.username, data);
+                    case 'connection_status':
+                        // Handle connection status updates
                         break;
                         
                     default:
-                        console.log('Unknown webhook event:', data);
+                        console.log('Unknown event type:', data);
                 }
             }
             
-            handleRedemptionEvent(username, eventData = null) {
-                // This is called when your server receives a webhook
+            addEntry(entryData) {
+                const maxEntries = parseInt(document.getElementById('maxEntries').value) || 0;
+                if (maxEntries > 0 && this.entries.length >= maxEntries) {
+                    this.stopGiveaway();
+                    this.showSuccess(`Maximum entries (${maxEntries}) reached! Giveaway stopped automatically.`);
+                    return;
+                }
+                
                 const entry = {
-                    username: username,
-                    timestamp: new Date(eventData?.redeemed_at || Date.now()),
-                    id: eventData?.redemption_id || (Date.now() + Math.random()),
-                    user_id: eventData?.user_id || null,
-                    reward_cost: eventData?.reward_cost || parseInt(document.getElementById('rewardCost').value)
+                    username: entryData.username,
+                    user_id: entryData.user_id,
+                    timestamp: new Date(entryData.redeemed_at),
+                    id: entryData.redemption_id,
+                    reward_cost: entryData.reward_cost
                 };
                 
                 this.entries.push(entry);
-                this.uniqueUsers.add(username);
+                this.uniqueUsers.add(entryData.username);
                 this.updateEntriesList();
                 this.updateStats();
                 
-                console.log(`New entry via EventSub: ${username}`);
-                this.showSuccess(`${username} entered the giveaway!`, 3000);
+                this.showSuccess(`${entryData.username} entered the giveaway! 🎉`, 3000);
             }
             
-            // API Helper Methods
-            async makeAuthenticatedRequest(endpoint, method = 'GET', body = null) {
-                const url = `${this.apiBaseUrl}${endpoint}`;
-                const clientId = document.getElementById('clientId').value.trim();
-                
-                const options = {
-                    method: method,
-                    headers: {
-                        'Authorization': `Bearer ${this.accessToken}`,
-                        'Client-Id': clientId,
-                        'Content-Type': 'application/json'
-                    }
-                };
-                
-                if (body) {
-                    options.body = JSON.stringify(body);
+            // Winner Selection
+            drawWinner() {
+                if (this.entries.length === 0) {
+                    this.showError('No entries to draw from!');
+                    return;
                 }
                 
-                const response = await fetch(url, options);
+                const randomIndex = Math.floor(Math.random() * this.entries.length);
+                const winner = this.entries[randomIndex];
                 
-                if (!response.ok) {
-                    const error = await response.text();
-                    throw new Error(`API Error: ${response.status} - ${error}`);
-                }
-                
-                return await response.json();
+                this.showWinnerAnnouncement(winner);
             }
             
-            // UI Update Methods
+            showWinnerAnnouncement(winner) {
+                const description = document.getElementById('giveawayDescription').value.trim() || 'the giveaway';
+                const announcement = document.getElementById('winnerAnnouncement');
+                
+                announcement.innerHTML = `
+                    🎉 WINNER WINNER! 🎉<br>
+                    <span style="font-size: 2rem; color: #9146ff; font-weight: bold;">${winner.username}</span><br>
+                    <span style="font-size: 1.1rem;">won ${description}!</span><br>
+                    <small style="opacity: 0.8;">Entered at ${winner.timestamp.toLocaleString()}</small>
+                `;
+                announcement.className = 'winner-announcement';
+                
+                // Auto-hide after 15 seconds
+                setTimeout(() => {
+                    announcement.className = 'winner-announcement hidden';
+                }, 15000);
+            }
+            
+            // UI Updates
+            showLoginPanel() {
+                document.getElementById('loginPanel').classList.remove('hidden');
+                document.getElementById('appContent').classList.add('hidden');
+            }
+            
+            showAppContent() {
+                document.getElementById('loginPanel').classList.add('hidden');
+                document.getElementById('appContent').classList.remove('hidden');
+            }
+            
+            displayUserInfo() {
+                const userInfoEl = document.getElementById('userInfo');
+                userInfoEl.innerHTML = `
+                    <img src="${this.userInfo.profile_image_url}" alt="${this.userInfo.display_name}" class="user-avatar">
+                    <div class="user-details">
+                        <h3>${this.userInfo.display_name}</h3>
+                        <p>Ready to set up giveaways • ${this.userInfo.view_count.toLocaleString()} total views</p>
+                    </div>
+                `;
+            }
+            
+            updateGiveawayControls() {
+                const startBtn = document.getElementById('startGiveawayBtn');
+                const stopBtn = document.getElementById('stopGiveawayBtn');
+                const drawBtn = document.getElementById('drawWinnerBtn');
+                
+                if (this.isGiveawayActive) {
+                    startBtn.classList.add('hidden');
+                    stopBtn.classList.remove('hidden');
+                    drawBtn.classList.remove('hidden');
+                } else {
+                    startBtn.classList.remove('hidden');
+                    stopBtn.classList.add('hidden');
+                    drawBtn.classList.toggle('hidden', this.entries.length === 0);
+                }
+            }
+            
             updateEntriesList() {
                 const entriesList = document.getElementById('entriesList');
                 
                 if (this.entries.length === 0) {
-                    entriesList.innerHTML = '<p style="text-align: center; opacity: 0.7;">No entries yet...</p>';
+                    entriesList.innerHTML = '<p style="text-align: center; opacity: 0.7;">No entries yet - start your giveaway to see participants!</p>';
                     return;
                 }
                 
@@ -853,139 +906,78 @@ updateWebhookUrl() {
                 document.getElementById('uniqueUsers').textContent = this.uniqueUsers.size;
                 document.getElementById('entriesCount').textContent = this.entries.length;
                 
-                const rewardCost = parseInt(document.getElementById('rewardCost').value) || 100;
-                document.getElementById('pointsSpent').textContent = this.entries.length * rewardCost;
+                const totalPointsSpent = this.entries.reduce((sum, entry) => sum + (entry.reward_cost || 0), 0);
+                document.getElementById('pointsSpent').textContent = totalPointsSpent.toLocaleString();
             }
             
-            updateConnectionStatus(status) {
+            updateStatus(type, message) {
                 const statusEl = document.getElementById('connectionStatus');
-                
-                switch (status) {
-                    case 'connected':
-                        statusEl.className = 'status connected';
-                        statusEl.innerHTML = '✅ Connected to Twitch - EventSub Active';
-                        break;
-                    case 'authenticating':
-                        statusEl.className = 'status authenticating';
-                        statusEl.innerHTML = '<span class="loading"></span> Setting up connection...';
-                        break;
-                    default:
-                        statusEl.className = 'status disconnected';
-                        statusEl.innerHTML = '❌ Not connected to Twitch';
-                }
+                statusEl.className = `status ${type}`;
+                statusEl.innerHTML = message;
             }
             
-            updateGiveawayControls() {
-                const startBtn = document.getElementById('startGiveawayBtn');
-                const stopBtn = document.getElementById('stopGiveawayBtn');
-                const drawBtn = document.getElementById('drawWinnerBtn');
-                
-                if (this.isGiveawayActive) {
-                    startBtn.style.display = 'none';
-                    stopBtn.style.display = 'inline-block';
-                    drawBtn.style.display = 'inline-block';
-                } else {
-                    startBtn.style.display = 'inline-block';
-                    stopBtn.style.display = 'none';
-                    drawBtn.style.display = this.entries.length > 0 ? 'inline-block' : 'none';
-                }
-            }
-            
-            // Winner Selection
-            drawWinner() {
-                if (this.entries.length === 0) {
-                    this.showError('No entries to draw from!');
+            clearEntries() {
+                if (!confirm('Are you sure you want to clear all entries? This cannot be undone.')) {
                     return;
                 }
                 
-                const randomIndex = Math.floor(Math.random() * this.entries.length);
-                const winner = this.entries[randomIndex];
+                this.entries = [];
+                this.uniqueUsers.clear();
+                this.updateEntriesList();
+                this.updateStats();
+                this.updateGiveawayControls();
                 
-                this.showWinnerAnnouncement(winner);
-            }
-            
-            showWinnerAnnouncement(winner) {
-                const announcement = document.getElementById('winnerAnnouncement');
-                announcement.innerHTML = `
-                    🎉 WINNER WINNER! 🎉<br>
-                    <span style="font-size: 1.8rem; color: #9146ff;">${winner.username}</span><br>
-                    Congratulations on winning the giveaway!<br>
-                    <small>Entered at ${winner.timestamp.toLocaleString()}</small>
-                `;
-                announcement.className = 'winner-announcement';
-                
-                setTimeout(() => {
-                    announcement.className = 'winner-announcement hidden';
-                }, 15000);
+                document.getElementById('winnerAnnouncement').className = 'winner-announcement hidden';
+                this.showSuccess('All entries cleared.');
             }
             
             // Utility Methods
-            clearEntries() {
-                if (confirm('Are you sure you want to clear all entries?')) {
-                    this.entries = [];
-                    this.uniqueUsers.clear();
-                    this.updateEntriesList();
-                    this.updateStats();
-                    document.getElementById('winnerAnnouncement').className = 'winner-announcement hidden';
-                    this.showSuccess('All entries cleared.');
+            async makeApiRequest(endpoint, method = 'GET', body = null) {
+                const response = await fetch(`https://api.twitch.tv/helix${endpoint}`, {
+                    method,
+                    headers: {
+                        'Authorization': `Bearer ${this.accessToken}`,
+                        'Client-Id': this.CLIENT_ID,
+                        'Content-Type': 'application/json'
+                    },
+                    body: body ? JSON.stringify(body) : null
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status}`);
                 }
+                
+                return await response.json();
             }
             
-            async disconnect() {
-                try {
-                    // Clean up EventSub subscription
-                    if (this.subscriptionId) {
-                        await this.makeAuthenticatedRequest(
-                            `/eventsub/subscriptions?id=${this.subscriptionId}`,
-                            'DELETE'
-                        );
-                    }
-                    
-                    // Delete channel points reward
-                    if (this.rewardId) {
-                        await this.makeAuthenticatedRequest(
-                            `/channel_points/custom_rewards?broadcaster_id=${this.userId}&id=${this.rewardId}`,
-                            'DELETE'
-                        );
-                    }
-                    
-                } catch (error) {
-                    console.error('Cleanup error:', error);
-                }
-                
-                // Reset state
-                this.isConnected = false;
-                this.isGiveawayActive = false;
-                this.accessToken = null;
-                this.refreshToken = null;
-                this.userId = null;
-                this.rewardId = null;
-                this.subscriptionId = null;
-                
-                this.updateConnectionStatus('disconnected');
-                this.updateGiveawayControls();
-                
-                document.getElementById('oauthBtn').style.display = 'inline-block';
-                document.getElementById('connectBtn').style.display = 'none';
-                document.getElementById('disconnectBtn').style.display = 'none';
-                document.getElementById('webhookStatus').textContent = '❌';
-                
+            logout() {
                 if (this.eventSource) {
                     this.eventSource.close();
                 }
                 
-                this.showSuccess('Disconnected from Twitch.');
+                localStorage.removeItem('twitch_access_token');
+                this.accessToken = null;
+                this.userInfo = null;
+                this.isAuthenticated = false;
+                this.isGiveawaySetup = false;
+                this.isGiveawayActive = false;
+                this.entries = [];
+                this.uniqueUsers.clear();
+                
+                this.showLoginPanel();
+                this.updateStats();
+                this.showSuccess('Signed out successfully.');
             }
             
             showError(message) {
                 const container = document.getElementById('errorContainer');
-                container.innerHTML = `<div class="error-message">${message}</div>`;
-                setTimeout(() => container.innerHTML = '', 10000);
+                container.innerHTML = `<div class="error-message">❌ ${message}</div>`;
+                setTimeout(() => container.innerHTML = '', 8000);
             }
             
             showSuccess(message, timeout = 5000) {
                 const container = document.getElementById('successContainer');
-                container.innerHTML = `<div class="success-message">${message}</div>`;
+                container.innerHTML = `<div class="success-message">✅ ${message}</div>`;
                 setTimeout(() => container.innerHTML = '', timeout);
             }
             
@@ -999,9 +991,10 @@ updateWebhookUrl() {
             }
         }
         
-        // Initialize the giveaway manager
-        const giveawayManager = new TwitchGiveawayManager();
-        giveawayManager.updateStats();
+        // Initialize the app when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.giveawayApp = new SimpleTwitchGiveaway();
+        });
     </script>
 </body>
 </html>
