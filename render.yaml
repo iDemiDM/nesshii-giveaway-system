@@ -1,0 +1,60 @@
+# render.yaml - Render deployment configuration
+services:
+  # Main webhook server
+  - type: web
+    name: twitch-webhook-server
+    env: node
+    region: oregon # or your preferred region
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    
+    # Auto-deploy settings
+    branch: main
+    rootDir: .
+    
+    # Resource allocation
+    plan: free # or starter for $7/month
+    
+    # Environment variables (set these in Render dashboard for security)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000 # Render's default port
+      # These should be set in Render dashboard (not in this file):
+      # - TWITCH_WEBHOOK_SECRET
+      # - TWITCH_CLIENT_SECRET  
+      # - ALLOWED_ORIGINS
+      
+  # Static site for frontend (optional - you can also serve from the main service)
+  - type: static_site
+    name: twitch-giveaway-frontend
+    buildCommand: echo "Static files ready"
+    publishPath: ./public
+    
+    # Custom headers for security
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+        
+    # Redirect rules
+    redirects:
+      - source: /*
+        destination: /index.html
+        type: rewrite
+
+# Database (optional - uncomment if you want persistent storage)
+# databases:
+#   - name: twitch-giveaway-db
+#     databaseName: giveaway
+#     user: admin
+#     region: oregon
+#     plan: free # 90 days free, then $7/month
