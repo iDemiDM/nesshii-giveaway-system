@@ -1,20 +1,29 @@
-// server.js - Multi-User Twitch Giveaway Service
+// server.js - Complete Multi-User Twitch Giveaway Service
 const express = require('express');
 const crypto = require('crypto');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Your Twitch Application Credentials (set these in environment variables)
-const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || 'YOUR_TWITCH_CLIENT_ID';
-const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || 'YOUR_TWITCH_CLIENT_SECRET';
+// Your Twitch Application Credentials
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
 const WEBHOOK_SECRET = process.env.TWITCH_WEBHOOK_SECRET || 'your-webhook-secret-123';
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Validate required environment variables
+if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+    console.error('❌ Missing required environment variables:');
+    if (!TWITCH_CLIENT_ID) console.error('- TWITCH_CLIENT_ID is required');
+    if (!TWITCH_CLIENT_SECRET) console.error('- TWITCH_CLIENT_SECRET is required');
+    process.exit(1);
+}
 
 // In-memory storage (use Redis/Database in production)
 const userSessions = new Map(); // userId -> {accessToken, refreshToken, rewardId, subscriptionId}
@@ -43,7 +52,7 @@ app.use(cors({
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
-    message: 'Too many requests, please try again later.'
+    message: { error: 'Too many requests, please try again later.' }
 });
 app.use('/api', limiter);
 
@@ -51,29 +60,63 @@ app.use('/api', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use('/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files from public directory
+app.use('/static', express.static(path.join(__dirname, 'public'), {
+    maxAge: NODE_ENV === 'production' ? '1d' : '0',
+    etag: true
+}));
 
-// Inject client ID into frontend
-app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    let indexHtml = require('fs').readFileSync(indexPath, 'utf8');
-    
-    // Replace placeholder with actual client ID
-    indexHtml = indexHtml.replace('YOUR_APP_CLIENT_ID', TWITCH_CLIENT_ID);
-    
-    res.send(indexHtml);
+// API Configuration endpoint
+app.get('/api/config', (req, res) => {
+    res.json({
+        clientId: TWITCH_CLIENT_ID,
+        redirectUri: `${req.protocol}://${req.get('host')}`
+    });
 });
 
-// Health check
+// Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
+        service: 'Twitch Giveaway Service',
         activeUsers: userSessions.size,
         activeGiveaways: Array.from(activeGiveaways.values()).filter(g => g.isActive).length,
         uptime: process.uptime(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: '2.0.0'
     });
+});
+
+// Serve the main frontend page with Client ID injected
+app.get('/', (req, res) => {
+    try {
+        const indexPath = path.join(__dirname, 'public', 'index.html');
+        
+        // Check if file exists
+        if (!fs.existsSync(indexPath)) {
+            console.error('Frontend file not found at:', indexPath);
+            return res.status(404).send(`
+                <h1>Frontend Not Found</h1>
+                <p>The frontend file is missing. Please ensure public/index.html exists.</p>
+                <p>Expected location: ${indexPath}</p>
+            `);
+        }
+        
+        let indexHtml = fs.readFileSync(indexPath, 'utf8');
+        
+        // Replace placeholder with actual client ID
+        indexHtml = indexHtml.replace('YOUR_APP_CLIENT_ID', TWITCH_CLIENT_ID);
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.send(indexHtml);
+    } catch (error) {
+        console.error('Error serving index:', error);
+        res.status(500).send(`
+            <h1>Server Error</h1>
+            <p>Error loading frontend: ${error.message}</p>
+            <p>Please check the server logs for more details.</p>
+        `);
+    }
 });
 
 // OAuth token exchange
@@ -84,6 +127,8 @@ app.post('/api/oauth/exchange', async (req, res) => {
         if (!code) {
             return res.status(400).json({ error: 'Authorization code required' });
         }
+        
+        console.log('Exchanging OAuth code for tokens...');
         
         // Exchange code for tokens
         const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
@@ -99,6 +144,8 @@ app.post('/api/oauth/exchange', async (req, res) => {
         });
         
         if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            console.error('Token exchange failed:', errorText);
             throw new Error('Token exchange failed');
         }
         
@@ -112,6 +159,10 @@ app.post('/api/oauth/exchange', async (req, res) => {
             }
         });
         
+        if (!userResponse.ok) {
+            throw new Error('Failed to fetch user info');
+        }
+        
         const userData = await userResponse.json();
         const userId = userData.data[0].id;
         
@@ -123,7 +174,7 @@ app.post('/api/oauth/exchange', async (req, res) => {
             createdAt: new Date()
         });
         
-        console.log(`User authenticated: ${userData.data[0].display_name} (${userId})`);
+        console.log(`✅ User authenticated: ${userData.data[0].display_name} (${userId})`);
         
         res.json({
             access_token: tokenData.access_token,
@@ -132,7 +183,10 @@ app.post('/api/oauth/exchange', async (req, res) => {
         
     } catch (error) {
         console.error('OAuth exchange error:', error);
-        res.status(500).json({ error: 'Authentication failed' });
+        res.status(500).json({ 
+            error: 'Authentication failed',
+            message: error.message 
+        });
     }
 });
 
@@ -141,10 +195,16 @@ app.post('/api/rewards/create', async (req, res) => {
     try {
         const { title, cost, prompt, user_id, access_token } = req.body;
         
+        if (!title || !cost || !user_id || !access_token) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
         const session = userSessions.get(user_id);
         if (!session || session.accessToken !== access_token) {
             return res.status(401).json({ error: 'Invalid session' });
         }
+        
+        console.log(`Creating reward for ${session.userInfo.display_name}: ${title} (${cost} points)`);
         
         // Create reward via Twitch API
         const rewardResponse = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${user_id}`, {
@@ -157,7 +217,7 @@ app.post('/api/rewards/create', async (req, res) => {
             body: JSON.stringify({
                 title: title,
                 cost: cost,
-                prompt: prompt,
+                prompt: prompt || 'Redeem to enter the giveaway!',
                 is_enabled: false,
                 background_color: '#9146FF',
                 is_user_input_required: false,
@@ -169,8 +229,9 @@ app.post('/api/rewards/create', async (req, res) => {
         });
         
         if (!rewardResponse.ok) {
-            const error = await rewardResponse.text();
-            throw new Error(`Reward creation failed: ${error}`);
+            const errorText = await rewardResponse.text();
+            console.error('Reward creation failed:', errorText);
+            throw new Error(`Reward creation failed: ${errorText}`);
         }
         
         const rewardData = await rewardResponse.json();
@@ -187,7 +248,7 @@ app.post('/api/rewards/create', async (req, res) => {
             createdAt: new Date()
         });
         
-        console.log(`Reward created for ${session.userInfo.display_name}: ${title} (${cost} points)`);
+        console.log(`✅ Reward created: ${title} (ID: ${rewardId})`);
         
         res.json({
             success: true,
@@ -213,6 +274,9 @@ app.post('/api/webhooks/subscribe', async (req, res) => {
         
         const webhookUrl = `${req.protocol}://${req.get('host')}/webhook/eventsub`;
         
+        console.log(`Setting up webhook subscription for ${session.userInfo.display_name}`);
+        console.log(`Webhook URL: ${webhookUrl}`);
+        
         // Create EventSub subscription
         const subscriptionResponse = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
             method: 'POST',
@@ -237,14 +301,15 @@ app.post('/api/webhooks/subscribe', async (req, res) => {
         });
         
         if (!subscriptionResponse.ok) {
-            const error = await subscriptionResponse.text();
-            throw new Error(`Subscription failed: ${error}`);
+            const errorText = await subscriptionResponse.text();
+            console.error('Subscription failed:', errorText);
+            throw new Error(`Subscription failed: ${errorText}`);
         }
         
         const subscriptionData = await subscriptionResponse.json();
         session.subscriptionId = subscriptionData.data[0].id;
         
-        console.log(`EventSub subscription created for ${session.userInfo.display_name}`);
+        console.log(`✅ EventSub subscription created (ID: ${subscriptionData.data[0].id})`);
         
         res.json({
             success: true,
@@ -263,12 +328,18 @@ app.post('/api/rewards/:action', async (req, res) => {
         const { action } = req.params; // 'enable' or 'disable'
         const { user_id, reward_id, access_token } = req.body;
         
+        if (!['enable', 'disable'].includes(action)) {
+            return res.status(400).json({ error: 'Invalid action. Use enable or disable.' });
+        }
+        
         const session = userSessions.get(user_id);
         if (!session || session.accessToken !== access_token) {
             return res.status(401).json({ error: 'Invalid session' });
         }
         
         const isEnabled = action === 'enable';
+        
+        console.log(`${isEnabled ? 'Enabling' : 'Disabling'} giveaway for ${session.userInfo.display_name}`);
         
         // Update reward status
         const response = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${user_id}&id=${reward_id}`, {
@@ -285,7 +356,8 @@ app.post('/api/rewards/:action', async (req, res) => {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to update reward status');
+            const errorText = await response.text();
+            throw new Error(`Failed to update reward status: ${errorText}`);
         }
         
         // Update giveaway state
@@ -294,7 +366,7 @@ app.post('/api/rewards/:action', async (req, res) => {
             giveaway.isActive = isEnabled;
         }
         
-        console.log(`Giveaway ${isEnabled ? 'started' : 'stopped'} for ${session.userInfo.display_name}`);
+        console.log(`✅ Giveaway ${isEnabled ? 'started' : 'stopped'}`);
         
         res.json({ success: true, enabled: isEnabled });
         
@@ -308,7 +380,9 @@ app.post('/api/rewards/:action', async (req, res) => {
 app.get('/events/:userId', (req, res) => {
     const userId = req.params.userId;
     
-    // Set up SSE
+    console.log(`SSE connection established for user: ${userId}`);
+    
+    // Set up SSE headers
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -329,18 +403,7 @@ app.get('/events/:userId', (req, res) => {
         timestamp: new Date().toISOString()
     })}\n\n`);
     
-    // Handle client disconnect
-    req.on('close', () => {
-        const connections = userConnections.get(userId);
-        if (connections) {
-            connections.delete(res);
-            if (connections.size === 0) {
-                userConnections.delete(userId);
-            }
-        }
-    });
-    
-    // Keep-alive heartbeat
+    // Keep-alive heartbeat every 30 seconds
     const heartbeat = setInterval(() => {
         try {
             res.write(`data: ${JSON.stringify({
@@ -352,13 +415,26 @@ app.get('/events/:userId', (req, res) => {
         }
     }, 30000);
     
-    req.on('close', () => clearInterval(heartbeat));
+    // Handle client disconnect
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        const connections = userConnections.get(userId);
+        if (connections) {
+            connections.delete(res);
+            if (connections.size === 0) {
+                userConnections.delete(userId);
+            }
+        }
+        console.log(`SSE connection closed for user: ${userId}`);
+    });
 });
 
 // Broadcast message to specific user's connections
 function broadcastToUser(userId, eventData) {
     const connections = userConnections.get(userId);
-    if (!connections) return;
+    if (!connections || connections.size === 0) {
+        return;
+    }
     
     const message = `data: ${JSON.stringify(eventData)}\n\n`;
     const deadConnections = [];
@@ -377,13 +453,18 @@ function broadcastToUser(userId, eventData) {
 
 // Twitch EventSub webhook endpoint
 app.post('/webhook/eventsub', (req, res) => {
-    // Verify webhook signature
+    const startTime = Date.now();
+    
+    // Get Twitch headers
     const messageId = req.header('Twitch-Eventsub-Message-Id');
     const timestamp = req.header('Twitch-Eventsub-Message-Timestamp');
     const signature = req.header('Twitch-Eventsub-Message-Signature');
     const messageType = req.header('Twitch-Eventsub-Message-Type');
     
+    console.log(`Webhook received: ${messageType}`);
+    
     if (!messageId || !timestamp || !signature) {
+        console.log('Missing required headers');
         return res.status(400).send('Missing required headers');
     }
     
@@ -402,13 +483,14 @@ app.post('/webhook/eventsub', (req, res) => {
     try {
         event = JSON.parse(req.body);
     } catch (error) {
+        console.log('Invalid JSON in webhook');
         return res.status(400).send('Invalid JSON');
     }
     
     // Handle different message types
     switch (messageType) {
         case 'webhook_callback_verification':
-            console.log('Webhook verification for challenge:', event.challenge);
+            console.log('✅ Webhook verification challenge received');
             return res.status(200).send(event.challenge);
             
         case 'notification':
@@ -418,8 +500,13 @@ app.post('/webhook/eventsub', (req, res) => {
         case 'revocation':
             handleSubscriptionRevocation(event);
             break;
+            
+        default:
+            console.log('Unknown webhook message type:', messageType);
     }
     
+    const processingTime = Date.now() - startTime;
+    console.log(`Webhook processed in ${processingTime}ms`);
     res.status(200).send('OK');
 });
 
@@ -462,13 +549,13 @@ function handleEventNotification(event) {
             ...entry
         });
         
-        console.log(`New giveaway entry for ${session.userInfo.display_name}: ${eventData.user_name}`);
+        console.log(`🎉 New giveaway entry for ${session.userInfo.display_name}: ${eventData.user_name}`);
     }
 }
 
 // Handle subscription revocations
 function handleSubscriptionRevocation(event) {
-    console.log('Subscription revoked:', event.subscription.id);
+    console.log('⚠️ Subscription revoked:', event.subscription.id);
     
     // Find user with this subscription and notify them
     for (const [userId, session] of userSessions) {
@@ -482,7 +569,7 @@ function handleSubscriptionRevocation(event) {
     }
 }
 
-// Get giveaway stats
+// Get giveaway stats for specific user
 app.get('/api/giveaway/:userId/stats', (req, res) => {
     const userId = req.params.userId;
     const giveaway = activeGiveaways.get(userId);
@@ -503,13 +590,15 @@ app.get('/api/giveaway/:userId/stats', (req, res) => {
     });
 });
 
-// Global stats endpoint
+// Global service stats
 app.get('/api/stats', (req, res) => {
     const totalUsers = userSessions.size;
     const activeGiveawaysCount = Array.from(activeGiveaways.values()).filter(g => g.isActive).length;
     const totalEntries = Array.from(activeGiveaways.values()).reduce((sum, g) => sum + g.entries.length, 0);
     
     res.json({
+        service: 'Twitch Giveaway Service',
+        version: '2.0.0',
         totalUsers,
         activeGiveaways: activeGiveawaysCount,
         totalEntries,
@@ -518,7 +607,7 @@ app.get('/api/stats', (req, res) => {
     });
 });
 
-// Cleanup endpoint (for testing)
+// Development cleanup endpoint
 if (NODE_ENV === 'development') {
     app.post('/api/cleanup/:userId', (req, res) => {
         const userId = req.params.userId;
@@ -531,7 +620,7 @@ if (NODE_ENV === 'development') {
     });
 }
 
-// Error handling
+// Error handling middleware
 app.use((error, req, res, next) => {
     console.error('Server error:', error);
     res.status(500).json({
@@ -544,34 +633,39 @@ app.use((error, req, res, next) => {
 app.use((req, res) => {
     res.status(404).json({
         error: 'Not found',
-        path: req.path
+        path: req.path,
+        message: 'The requested endpoint does not exist'
     });
 });
 
 // Start server
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`
-🎉 Multi-User Twitch Giveaway Service Started!
+🎉 Twitch Giveaway Service Started Successfully!
 ┌─────────────────────────────────────────────┐
-│  Port: ${PORT}                                    │
-│  Environment: ${NODE_ENV}                        │  
-│  Twitch Client ID: ${TWITCH_CLIENT_ID.substring(0, 8)}...         │
-│  Frontend: /                                │
-│  Health: /health                            │
+│  🌐 Port: ${PORT}                                 │
+│  🔧 Environment: ${NODE_ENV}                      │  
+│  🔑 Client ID: ${TWITCH_CLIENT_ID ? TWITCH_CLIENT_ID.substring(0, 8) + '...' : 'NOT SET'}        │
+│  📡 Webhook: /webhook/eventsub              │
+│  💻 Frontend: /                             │
+│  ❤️  Health: /health                         │
+│  ⚙️  Config: /api/config                     │
 └─────────────────────────────────────────────┘
     `);
     
     if (NODE_ENV === 'development') {
-        console.log(`🌐 Local URL: http://localhost:${PORT}`);
+        console.log(`🔗 Local URL: http://localhost:${PORT}`);
     }
+    
+    console.log('✅ Ready to serve streamers!');
 });
 
 // Graceful shutdown
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-function gracefulShutdown() {
-    console.log('🛑 Shutting down gracefully...');
+function gracefulShutdown(signal) {
+    console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
     
     // Notify all connected users
     for (const [userId, connections] of userConnections) {
@@ -598,6 +692,12 @@ function gracefulShutdown() {
         console.log('✅ Server closed successfully');
         process.exit(0);
     });
+    
+    // Force exit after 10 seconds
+    setTimeout(() => {
+        console.log('❌ Force closing server');
+        process.exit(1);
+    }, 10000);
 }
 
 module.exports = app;
