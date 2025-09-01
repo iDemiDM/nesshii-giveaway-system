@@ -1,4 +1,4 @@
-// server.js - Enhanced Twitch EventSub Webhook Server with Static File Serving
+// server.js - Multi-User Twitch Giveaway Service
 const express = require('express');
 const crypto = require('crypto');
 const cors = require('cors');
@@ -10,11 +10,16 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Environment variables
+// Your Twitch Application Credentials (set these in environment variables)
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || 'YOUR_TWITCH_CLIENT_ID';
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || 'YOUR_TWITCH_CLIENT_SECRET';
 const WEBHOOK_SECRET = process.env.TWITCH_WEBHOOK_SECRET || 'your-webhook-secret-123';
-const CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// In-memory storage (use Redis/Database in production)
+const userSessions = new Map(); // userId -> {accessToken, refreshToken, rewardId, subscriptionId}
+const userConnections = new Map(); // userId -> Set of SSE connections
+const activeGiveaways = new Map(); // userId -> {isActive, entries, rewardId}
 
 // Security middleware
 app.use(helmet({
@@ -22,398 +27,516 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
             connectSrc: ["'self'", "https://api.twitch.tv", "https://id.twitch.tv"],
-            imgSrc: ["'self'", "data:", "https:"],
+            imgSrc: ["'self'", "data:", "https:", "https://static-cdn.jtvnw.net"],
         },
     },
 }));
 
-// CORS configuration
 app.use(cors({
-    origin: function(origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, etc.)
-        if (!origin) return callback(null, true);
-        
-        if (ALLOWED_ORIGINS.some(allowedOrigin => 
-            origin.includes(allowedOrigin.replace(/^https?:\/\//, '')))) {
-            return callback(null, true);
-        }
-        
-        callback(new Error('Not allowed by CORS'));
-    },
+    origin: true,
     credentials: true
 }));
 
 // Rate limiting
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: process.env.RATE_LIMIT_MAX || 100,
-    message: 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: 'Too many requests, please try again later.'
 });
-app.use(limiter);
+app.use('/api', limiter);
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, 'public'), {
-    maxAge: NODE_ENV === 'production' ? '1d' : '0',
-    etag: true,
-    lastModified: true
-}));
-
-// Raw body parser for webhook signature verification
-app.use('/webhook', express.raw({
-    type: 'application/json',
-    limit: '1mb'
-}));
-
-// JSON parser for other routes
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
+app.use('/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 
-// Store active connections (in production, consider Redis)
-const activeConnections = new Map();
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Health check endpoint
+// Inject client ID into frontend
+app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    let indexHtml = require('fs').readFileSync(indexPath, 'utf8');
+    
+    // Replace placeholder with actual client ID
+    indexHtml = indexHtml.replace('YOUR_APP_CLIENT_ID', TWITCH_CLIENT_ID);
+    
+    res.send(indexHtml);
+});
+
+// Health check
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
-        service: 'Twitch EventSub Webhook Server',
-        timestamp: new Date().toISOString(),
-        activeConnections: activeConnections.size,
+        activeUsers: userSessions.size,
+        activeGiveaways: Array.from(activeGiveaways.values()).filter(g => g.isActive).length,
         uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        version: process.env.npm_package_version || '1.0.0'
+        timestamp: new Date().toISOString()
     });
 });
 
-// Main route - serve the frontend
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// OAuth token exchange
+app.post('/api/oauth/exchange', async (req, res) => {
+    try {
+        const { code, redirect_uri } = req.body;
+        
+        if (!code) {
+            return res.status(400).json({ error: 'Authorization code required' });
+        }
+        
+        // Exchange code for tokens
+        const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_id: TWITCH_CLIENT_ID,
+                client_secret: TWITCH_CLIENT_SECRET,
+                code: code,
+                grant_type: 'authorization_code',
+                redirect_uri: redirect_uri
+            })
+        });
+        
+        if (!tokenResponse.ok) {
+            throw new Error('Token exchange failed');
+        }
+        
+        const tokenData = await tokenResponse.json();
+        
+        // Get user info
+        const userResponse = await fetch('https://api.twitch.tv/helix/users', {
+            headers: {
+                'Authorization': `Bearer ${tokenData.access_token}`,
+                'Client-Id': TWITCH_CLIENT_ID
+            }
+        });
+        
+        const userData = await userResponse.json();
+        const userId = userData.data[0].id;
+        
+        // Store session
+        userSessions.set(userId, {
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            userInfo: userData.data[0],
+            createdAt: new Date()
+        });
+        
+        console.log(`User authenticated: ${userData.data[0].display_name} (${userId})`);
+        
+        res.json({
+            access_token: tokenData.access_token,
+            user_id: userId
+        });
+        
+    } catch (error) {
+        console.error('OAuth exchange error:', error);
+        res.status(500).json({ error: 'Authentication failed' });
+    }
 });
 
-// Server-Sent Events endpoint for real-time communication
-app.get('/events', (req, res) => {
-    // Set up Server-Sent Events
+// Create channel points reward
+app.post('/api/rewards/create', async (req, res) => {
+    try {
+        const { title, cost, prompt, user_id, access_token } = req.body;
+        
+        const session = userSessions.get(user_id);
+        if (!session || session.accessToken !== access_token) {
+            return res.status(401).json({ error: 'Invalid session' });
+        }
+        
+        // Create reward via Twitch API
+        const rewardResponse = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${user_id}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${access_token}`,
+                'Client-Id': TWITCH_CLIENT_ID,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                title: title,
+                cost: cost,
+                prompt: prompt,
+                is_enabled: false,
+                background_color: '#9146FF',
+                is_user_input_required: false,
+                is_max_per_stream_enabled: false,
+                is_max_per_user_per_stream_enabled: true,
+                max_per_user_per_stream: 1,
+                should_redemptions_skip_request_queue: true
+            })
+        });
+        
+        if (!rewardResponse.ok) {
+            const error = await rewardResponse.text();
+            throw new Error(`Reward creation failed: ${error}`);
+        }
+        
+        const rewardData = await rewardResponse.json();
+        const rewardId = rewardData.data[0].id;
+        
+        // Update session with reward ID
+        session.rewardId = rewardId;
+        
+        // Initialize giveaway state
+        activeGiveaways.set(user_id, {
+            isActive: false,
+            entries: [],
+            rewardId: rewardId,
+            createdAt: new Date()
+        });
+        
+        console.log(`Reward created for ${session.userInfo.display_name}: ${title} (${cost} points)`);
+        
+        res.json({
+            success: true,
+            reward_id: rewardId,
+            reward_data: rewardData.data[0]
+        });
+        
+    } catch (error) {
+        console.error('Reward creation error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Setup EventSub webhook subscription
+app.post('/api/webhooks/subscribe', async (req, res) => {
+    try {
+        const { user_id, reward_id, access_token } = req.body;
+        
+        const session = userSessions.get(user_id);
+        if (!session || session.accessToken !== access_token) {
+            return res.status(401).json({ error: 'Invalid session' });
+        }
+        
+        const webhookUrl = `${req.protocol}://${req.get('host')}/webhook/eventsub`;
+        
+        // Create EventSub subscription
+        const subscriptionResponse = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${access_token}`,
+                'Client-Id': TWITCH_CLIENT_ID,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                type: 'channel.channel_points_custom_reward_redemption.add',
+                version: '1',
+                condition: {
+                    broadcaster_user_id: user_id,
+                    reward_id: reward_id
+                },
+                transport: {
+                    method: 'webhook',
+                    callback: webhookUrl,
+                    secret: WEBHOOK_SECRET
+                }
+            })
+        });
+        
+        if (!subscriptionResponse.ok) {
+            const error = await subscriptionResponse.text();
+            throw new Error(`Subscription failed: ${error}`);
+        }
+        
+        const subscriptionData = await subscriptionResponse.json();
+        session.subscriptionId = subscriptionData.data[0].id;
+        
+        console.log(`EventSub subscription created for ${session.userInfo.display_name}`);
+        
+        res.json({
+            success: true,
+            subscription_id: subscriptionData.data[0].id
+        });
+        
+    } catch (error) {
+        console.error('Webhook subscription error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Enable/disable channel points reward
+app.post('/api/rewards/:action', async (req, res) => {
+    try {
+        const { action } = req.params; // 'enable' or 'disable'
+        const { user_id, reward_id, access_token } = req.body;
+        
+        const session = userSessions.get(user_id);
+        if (!session || session.accessToken !== access_token) {
+            return res.status(401).json({ error: 'Invalid session' });
+        }
+        
+        const isEnabled = action === 'enable';
+        
+        // Update reward status
+        const response = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${user_id}&id=${reward_id}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${access_token}`,
+                'Client-Id': TWITCH_CLIENT_ID,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                is_enabled: isEnabled,
+                is_paused: !isEnabled
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update reward status');
+        }
+        
+        // Update giveaway state
+        const giveaway = activeGiveaways.get(user_id);
+        if (giveaway) {
+            giveaway.isActive = isEnabled;
+        }
+        
+        console.log(`Giveaway ${isEnabled ? 'started' : 'stopped'} for ${session.userInfo.display_name}`);
+        
+        res.json({ success: true, enabled: isEnabled });
+        
+    } catch (error) {
+        console.error('Reward update error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Server-Sent Events for real-time updates
+app.get('/events/:userId', (req, res) => {
+    const userId = req.params.userId;
+    
+    // Set up SSE
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control',
-        'X-Accel-Buffering': 'no' // Disable Nginx buffering
+        'Access-Control-Allow-Origin': '*'
     });
-
-    const connectionId = Date.now() + Math.random();
-    const clientInfo = {
-        connection: res,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
-        connectedAt: new Date()
-    };
     
-    activeConnections.set(connectionId, clientInfo);
-
-    // Keep connection alive with heartbeat
+    // Add connection to user's connection set
+    if (!userConnections.has(userId)) {
+        userConnections.set(userId, new Set());
+    }
+    userConnections.get(userId).add(res);
+    
+    // Send initial connection message
+    res.write(`data: ${JSON.stringify({
+        type: 'connection_status',
+        status: 'connected',
+        timestamp: new Date().toISOString()
+    })}\n\n`);
+    
+    // Handle client disconnect
+    req.on('close', () => {
+        const connections = userConnections.get(userId);
+        if (connections) {
+            connections.delete(res);
+            if (connections.size === 0) {
+                userConnections.delete(userId);
+            }
+        }
+    });
+    
+    // Keep-alive heartbeat
     const heartbeat = setInterval(() => {
         try {
             res.write(`data: ${JSON.stringify({
                 type: 'heartbeat',
-                timestamp: new Date().toISOString(),
-                connectionId: connectionId
+                timestamp: new Date().toISOString()
             })}\n\n`);
         } catch (error) {
             clearInterval(heartbeat);
-            activeConnections.delete(connectionId);
         }
     }, 30000);
-
-    req.on('close', () => {
-        clearInterval(heartbeat);
-        activeConnections.delete(connectionId);
-        console.log(`Client ${connectionId} disconnected`);
-    });
-
-    // Send initial connection message
-    res.write(`data: ${JSON.stringify({
-        type: 'connected',
-        message: 'Connected to EventSub server',
-        connectionId: connectionId,
-        serverTime: new Date().toISOString()
-    })}\n\n`);
+    
+    req.on('close', () => clearInterval(heartbeat));
 });
 
-// Broadcast event to all connected clients
-function broadcastEvent(eventData) {
-    const message = `data: ${JSON.stringify({
-        ...eventData,
-        serverTime: new Date().toISOString()
-    })}\n\n`;
+// Broadcast message to specific user's connections
+function broadcastToUser(userId, eventData) {
+    const connections = userConnections.get(userId);
+    if (!connections) return;
     
-    const disconnectedClients = [];
+    const message = `data: ${JSON.stringify(eventData)}\n\n`;
+    const deadConnections = [];
     
-    for (const [connectionId, clientInfo] of activeConnections) {
+    for (const connection of connections) {
         try {
-            clientInfo.connection.write(message);
+            connection.write(message);
         } catch (error) {
-            console.log('Removing dead connection:', connectionId);
-            disconnectedClients.push(connectionId);
+            deadConnections.push(connection);
         }
     }
     
-    // Clean up dead connections
-    disconnectedClients.forEach(id => activeConnections.delete(id));
+    // Remove dead connections
+    deadConnections.forEach(conn => connections.delete(conn));
 }
 
 // Twitch EventSub webhook endpoint
 app.post('/webhook/eventsub', (req, res) => {
-    const startTime = Date.now();
-    
-    // Get Twitch headers
+    // Verify webhook signature
     const messageId = req.header('Twitch-Eventsub-Message-Id');
     const timestamp = req.header('Twitch-Eventsub-Message-Timestamp');
     const signature = req.header('Twitch-Eventsub-Message-Signature');
     const messageType = req.header('Twitch-Eventsub-Message-Type');
-    const subscriptionType = req.header('Twitch-Eventsub-Subscription-Type');
-
-    console.log(`[${new Date().toISOString()}] Webhook received:`, {
-        messageType,
-        subscriptionType,
-        messageId: messageId?.substring(0, 8) + '...'
-    });
-
+    
     if (!messageId || !timestamp || !signature) {
-        console.log('Missing required headers');
-        return res.status(400).json({
-            error: 'Bad Request',
-            message: 'Missing required headers'
-        });
+        return res.status(400).send('Missing required headers');
     }
-
-    // Verify webhook signature
+    
+    // Verify signature
     const expectedSignature = crypto
         .createHmac('sha256', WEBHOOK_SECRET)
         .update(messageId + timestamp + req.body)
         .digest('hex');
-
-    const providedSignature = signature.replace('sha256=', '');
-
-    if (expectedSignature !== providedSignature) {
-        console.log('Invalid signature - possible security breach attempt');
-        return res.status(403).json({
-            error: 'Forbidden',
-            message: 'Invalid signature'
-        });
+    
+    if (`sha256=${expectedSignature}` !== signature) {
+        console.log('Invalid webhook signature');
+        return res.status(403).send('Invalid signature');
     }
-
+    
     let event;
     try {
         event = JSON.parse(req.body);
     } catch (error) {
-        console.log('Invalid JSON payload');
-        return res.status(400).json({
-            error: 'Bad Request',
-            message: 'Invalid JSON payload'
-        });
+        return res.status(400).send('Invalid JSON');
     }
-
+    
     // Handle different message types
     switch (messageType) {
         case 'webhook_callback_verification':
-            console.log('Webhook verification challenge received');
+            console.log('Webhook verification for challenge:', event.challenge);
             return res.status(200).send(event.challenge);
-
+            
         case 'notification':
             handleEventNotification(event);
             break;
-
+            
         case 'revocation':
-            console.log('Subscription revoked:', event.subscription.id, 'Reason:', event.subscription.status);
-            broadcastEvent({
-                type: 'subscription_revoked',
-                subscription_id: event.subscription.id,
-                reason: event.subscription.status
-            });
+            handleSubscriptionRevocation(event);
             break;
-
-        default:
-            console.log('Unknown message type:', messageType);
-            return res.status(400).json({
-                error: 'Bad Request',
-                message: 'Unknown message type'
-            });
     }
-
-    const processingTime = Date.now() - startTime;
-    console.log(`Webhook processed in ${processingTime}ms`);
     
-    res.status(200).json({
-        status: 'success',
-        processingTime: processingTime
-    });
+    res.status(200).send('OK');
 });
 
 // Handle EventSub notifications
 function handleEventNotification(event) {
-    const subscriptionType = event.subscription.type;
     const eventData = event.event;
-
-    console.log(`Processing ${subscriptionType} event for user: ${eventData.user_name || eventData.user_login || 'unknown'}`);
-
-    switch (subscriptionType) {
-        case 'channel.channel_points_custom_reward_redemption.add':
-            handleChannelPointsRedemption(eventData);
-            break;
-
-        case 'channel.channel_points_custom_reward_redemption.update':
-            handleChannelPointsRedemptionUpdate(eventData);
-            break;
-
-        case 'channel.follow':
-            handleFollowEvent(eventData);
-            break;
-
-        case 'channel.subscribe':
-            handleSubscriptionEvent(eventData);
-            break;
-
-        default:
-            console.log('Unhandled subscription type:', subscriptionType);
-            broadcastEvent({
-                type: 'unhandled_event',
-                subscription_type: subscriptionType,
-                event_data: eventData
-            });
+    const subscriptionType = event.subscription.type;
+    
+    if (subscriptionType === 'channel.channel_points_custom_reward_redemption.add') {
+        const userId = eventData.broadcaster_user_id;
+        const giveaway = activeGiveaways.get(userId);
+        const session = userSessions.get(userId);
+        
+        if (!giveaway || !session) {
+            console.log(`No active giveaway found for user ${userId}`);
+            return;
+        }
+        
+        // Check if this is for the current giveaway reward
+        if (eventData.reward.id !== giveaway.rewardId) {
+            console.log(`Redemption for different reward: ${eventData.reward.id}`);
+            return;
+        }
+        
+        // Add entry to giveaway
+        const entry = {
+            username: eventData.user_name,
+            user_id: eventData.user_id,
+            redemption_id: eventData.id,
+            reward_id: eventData.reward.id,
+            reward_cost: eventData.reward.cost,
+            redeemed_at: eventData.redeemed_at
+        };
+        
+        giveaway.entries.push(entry);
+        
+        // Broadcast to user's frontend
+        broadcastToUser(userId, {
+            type: 'giveaway_entry',
+            ...entry
+        });
+        
+        console.log(`New giveaway entry for ${session.userInfo.display_name}: ${eventData.user_name}`);
     }
 }
 
-// Handle channel points redemption
-function handleChannelPointsRedemption(redemptionData) {
-    const entryData = {
-        type: 'giveaway_entry',
-        username: redemptionData.user_name,
-        user_id: redemptionData.user_id,
-        reward_id: redemptionData.reward.id,
-        reward_title: redemptionData.reward.title,
-        reward_cost: redemptionData.reward.cost,
-        redeemed_at: redemptionData.redeemed_at,
-        redemption_id: redemptionData.id,
-        user_input: redemptionData.user_input || null,
-        status: redemptionData.status
-    };
-
-    // Broadcast to all connected clients
-    broadcastEvent(entryData);
-
-    console.log(`✅ Giveaway entry: ${entryData.username} (${entryData.reward_cost} points) - ${entryData.reward_title}`);
-}
-
-// Handle redemption updates (fulfilled, canceled, etc.)
-function handleChannelPointsRedemptionUpdate(redemptionData) {
-    const updateData = {
-        type: 'redemption_update',
-        username: redemptionData.user_name,
-        user_id: redemptionData.user_id,
-        redemption_id: redemptionData.id,
-        reward_title: redemptionData.reward.title,
-        status: redemptionData.status,
-        updated_at: redemptionData.redeemed_at
-    };
-
-    broadcastEvent(updateData);
-    console.log(`📝 Redemption updated: ${updateData.username} - ${updateData.status}`);
-}
-
-// Handle follow events (bonus feature)
-function handleFollowEvent(eventData) {
-    broadcastEvent({
-        type: 'new_follow',
-        username: eventData.user_name,
-        user_id: eventData.user_id,
-        followed_at: eventData.followed_at
-    });
+// Handle subscription revocations
+function handleSubscriptionRevocation(event) {
+    console.log('Subscription revoked:', event.subscription.id);
     
-    console.log(`💜 New follower: ${eventData.user_name}`);
+    // Find user with this subscription and notify them
+    for (const [userId, session] of userSessions) {
+        if (session.subscriptionId === event.subscription.id) {
+            broadcastToUser(userId, {
+                type: 'subscription_revoked',
+                reason: event.subscription.status
+            });
+            break;
+        }
+    }
 }
 
-// Handle subscription events (bonus feature)  
-function handleSubscriptionEvent(eventData) {
-    broadcastEvent({
-        type: 'new_subscription',
-        username: eventData.user_name,
-        user_id: eventData.user_id,
-        tier: eventData.tier,
-        is_gift: eventData.is_gift,
-        subscribed_at: eventData.subscribed_at || new Date().toISOString()
-    });
+// Get giveaway stats
+app.get('/api/giveaway/:userId/stats', (req, res) => {
+    const userId = req.params.userId;
+    const giveaway = activeGiveaways.get(userId);
     
-    console.log(`⭐ New subscriber: ${eventData.user_name} (Tier ${eventData.tier})`);
-}
-
-// API endpoint to get server stats
-app.get('/api/stats', (req, res) => {
-    const connections = Array.from(activeConnections.entries()).map(([id, info]) => ({
-        id: id,
-        ip: info.ip,
-        connectedAt: info.connectedAt,
-        userAgent: info.userAgent?.substring(0, 100) || 'unknown'
-    }));
-
+    if (!giveaway) {
+        return res.status(404).json({ error: 'Giveaway not found' });
+    }
+    
+    const uniqueUsers = new Set(giveaway.entries.map(e => e.username));
+    const totalPoints = giveaway.entries.reduce((sum, e) => sum + (e.reward_cost || 0), 0);
+    
     res.json({
-        server: {
-            status: 'running',
-            uptime: process.uptime(),
-            startTime: new Date(Date.now() - process.uptime() * 1000).toISOString(),
-            version: process.env.npm_package_version || '1.0.0',
-            nodeVersion: process.version,
-            environment: NODE_ENV
-        },
-        connections: {
-            active: activeConnections.size,
-            details: connections
-        },
-        resources: {
-            memory: process.memoryUsage(),
-            cpu: process.cpuUsage()
-        },
+        isActive: giveaway.isActive,
+        totalEntries: giveaway.entries.length,
+        uniqueUsers: uniqueUsers.size,
+        totalPointsSpent: totalPoints,
+        entries: giveaway.entries.slice(-20) // Last 20 entries
+    });
+});
+
+// Global stats endpoint
+app.get('/api/stats', (req, res) => {
+    const totalUsers = userSessions.size;
+    const activeGiveawaysCount = Array.from(activeGiveaways.values()).filter(g => g.isActive).length;
+    const totalEntries = Array.from(activeGiveaways.values()).reduce((sum, g) => sum + g.entries.length, 0);
+    
+    res.json({
+        totalUsers,
+        activeGiveaways: activeGiveawaysCount,
+        totalEntries,
+        uptime: process.uptime(),
         timestamp: new Date().toISOString()
     });
 });
 
-// API endpoint to test webhook connectivity
-app.post('/api/test-webhook', (req, res) => {
-    if (NODE_ENV === 'production') {
-        return res.status(403).json({
-            error: 'Test endpoint disabled in production'
-        });
-    }
-
-    const testEvent = {
-        type: 'test_entry',
-        username: 'TestUser' + Math.floor(Math.random() * 1000),
-        user_id: '12345',
-        reward_cost: 100,
-        reward_title: 'Test Giveaway Entry',
-        redeemed_at: new Date().toISOString(),
-        redemption_id: 'test-' + Date.now()
-    };
-
-    broadcastEvent(testEvent);
-    res.json({ 
-        success: true, 
-        message: 'Test event broadcasted',
-        testEvent 
+// Cleanup endpoint (for testing)
+if (NODE_ENV === 'development') {
+    app.post('/api/cleanup/:userId', (req, res) => {
+        const userId = req.params.userId;
+        
+        userSessions.delete(userId);
+        activeGiveaways.delete(userId);
+        userConnections.delete(userId);
+        
+        res.json({ success: true, message: 'User data cleaned up' });
     });
-});
+}
 
-// Error handling middleware
+// Error handling
 app.use((error, req, res, next) => {
-    console.error(`[${new Date().toISOString()}] Server error:`, error);
-    
+    console.error('Server error:', error);
     res.status(500).json({
         error: 'Internal server error',
-        message: NODE_ENV === 'development' ? error.message : 'Something went wrong',
-        timestamp: new Date().toISOString()
+        message: NODE_ENV === 'development' ? error.message : 'Something went wrong'
     });
 });
 
@@ -421,32 +544,25 @@ app.use((error, req, res, next) => {
 app.use((req, res) => {
     res.status(404).json({
         error: 'Not found',
-        path: req.path,
-        message: 'The requested resource was not found',
-        timestamp: new Date().toISOString()
+        path: req.path
     });
 });
 
 // Start server
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`
-🚀 Twitch EventSub Webhook Server Started!
-┌─────────────────────────────────────────┐
-│  Port: ${PORT}                               │
-│  Environment: ${NODE_ENV}                   │
-│  Webhook URL: /webhook/eventsub         │
-│  Events Stream: /events                 │  
-│  Frontend: /                            │
-│  Health Check: /health                  │
-│  Stats API: /api/stats                  │
-└─────────────────────────────────────────┘
+🎉 Multi-User Twitch Giveaway Service Started!
+┌─────────────────────────────────────────────┐
+│  Port: ${PORT}                                    │
+│  Environment: ${NODE_ENV}                        │  
+│  Twitch Client ID: ${TWITCH_CLIENT_ID.substring(0, 8)}...         │
+│  Frontend: /                                │
+│  Health: /health                            │
+└─────────────────────────────────────────────┘
     `);
     
     if (NODE_ENV === 'development') {
-        console.log(`🌐 Local URLs:`);
-        console.log(`   Frontend: http://localhost:${PORT}`);
-        console.log(`   Webhook: http://localhost:${PORT}/webhook/eventsub`);
-        console.log(`   ⚠️  For production webhooks, ensure HTTPS!`);
+        console.log(`🌐 Local URL: http://localhost:${PORT}`);
     }
 });
 
@@ -454,40 +570,34 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-function gracefulShutdown(signal) {
-    console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
+function gracefulShutdown() {
+    console.log('🛑 Shutting down gracefully...');
     
-    // Close all active SSE connections
-    const shutdownMessage = JSON.stringify({
-        type: 'server_shutdown',
-        message: 'Server is shutting down',
-        timestamp: new Date().toISOString()
-    });
-    
-    for (const [connectionId, clientInfo] of activeConnections) {
-        try {
-            clientInfo.connection.write(`data: ${shutdownMessage}\n\n`);
-            clientInfo.connection.end();
-        } catch (error) {
-            // Connection already closed
+    // Notify all connected users
+    for (const [userId, connections] of userConnections) {
+        const message = `data: ${JSON.stringify({
+            type: 'server_shutdown',
+            message: 'Server is restarting, please refresh the page'
+        })}\n\n`;
+        
+        for (const connection of connections) {
+            try {
+                connection.write(message);
+                connection.end();
+            } catch (error) {
+                // Connection already closed
+            }
         }
     }
     
-    // Close HTTP server
     server.close((err) => {
         if (err) {
-            console.error('Error during server shutdown:', err);
+            console.error('Error during shutdown:', err);
             process.exit(1);
         }
         console.log('✅ Server closed successfully');
         process.exit(0);
     });
-    
-    // Force close after 10 seconds
-    setTimeout(() => {
-        console.log('❌ Force closing server');
-        process.exit(1);
-    }, 10000);
 }
 
 module.exports = app;
