@@ -1,39 +1,3 @@
-.login-panel {
-            text-align: center;
-            padding: 40px;
-        }
-        
-        .login-panel.hidden {
-            display: none;
-        }
-        
-        .twitch-login-btn {
-            background: linear-gradient(135deg, #228B22, #32CD32);
-            color: white;
-            border: none;
-            padding: 20px 40px;
-            border-radius: 12px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 15px;
-            text-decoration: none;
-            box-shadow: 0 4px 15px rgba(34, 139, 34, 0.4);
-        }
-        
-        .twitch-login-btn:hover {
-            background: linear-gradient(135deg, #32CD32, #228B22);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(34, 139, 34, 0.6);
-        }
-        
-        .twitch-logo {
-            width: 30px;
-            height: 30px;
-        }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -48,14 +12,15 @@
         
         body {
             font-family: 'Georgia', 'Times New Roman', serif;
-            background: linear-gradient(135deg, #2d5a27, #1a4c1a, #0f2f0f);
-            background-attachment: fixed;
+            background: #0a0f0a;
             background-image: 
-                radial-gradient(circle at 20% 80%, rgba(120, 219, 120, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(34, 139, 34, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 40% 40%, rgba(46, 125, 50, 0.05) 0%, transparent 50%);
+                linear-gradient(135deg, #0a0f0a 0%, #1a2e1a 50%, #0d1b0d 100%),
+                radial-gradient(circle at 20% 80%, rgba(34, 139, 34, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(46, 125, 50, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(25, 100, 25, 0.05) 0%, transparent 50%);
+            background-attachment: fixed;
             min-height: 100vh;
-            color: #f0f8f0;
+            color: #e8f5e8;
         }
         
         .container {
@@ -72,18 +37,18 @@
         .header h1 {
             font-size: 2.5rem;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            color: #90ee90;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+            color: #7dd87d;
         }
         
         .login-panel, .setup-panel, .entries-panel {
-            background: rgba(46, 125, 50, 0.2);
+            background: rgba(8, 18, 8, 0.95);
             border-radius: 15px;
             padding: 25px;
             margin-bottom: 30px;
             backdrop-filter: blur(15px);
-            border: 2px solid rgba(144, 238, 144, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(125, 216, 125, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
         }
         
         .user-info {
@@ -100,12 +65,12 @@
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            border: 2px solid #90ee90;
+            border: 2px solid #7dd87d;
         }
         
         .user-details h3 {
             margin: 0;
-            color: #90ee90;
+            color: #7dd87d;
         }
         
         .user-details p {
@@ -128,22 +93,23 @@
         .form-group input, .form-group textarea {
             width: 100%;
             padding: 12px;
-            border: 2px solid rgba(144, 238, 144, 0.3);
+            border: 2px solid rgba(125, 216, 125, 0.5);
             border-radius: 8px;
-            background: rgba(46, 125, 50, 0.1);
-            color: #f0f8f0;
+            background: rgba(5, 15, 5, 0.9);
+            color: #e8f5e8;
             font-size: 1rem;
             transition: all 0.3s ease;
         }
         
         .form-group input:focus, .form-group textarea:focus {
             outline: none;
-            border-color: #90ee90;
-            box-shadow: 0 0 10px rgba(144, 238, 144, 0.3);
+            border-color: #7dd87d;
+            box-shadow: 0 0 15px rgba(125, 216, 125, 0.5);
+            background: rgba(8, 18, 8, 0.95);
         }
         
         .form-group input::placeholder, .form-group textarea::placeholder {
-            color: rgba(240, 248, 240, 0.6);
+            color: rgba(232, 245, 232, 0.6);
         }
         
         .form-group textarea {
@@ -169,59 +135,60 @@
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, #228B22, #32CD32);
+            background: linear-gradient(135deg, #2d5a2d, #4caf4c);
             color: white;
-            border: 2px solid rgba(144, 238, 144, 0.3);
-            box-shadow: 0 4px 15px rgba(34, 139, 34, 0.3);
+            border: 2px solid rgba(125, 216, 125, 0.4);
+            box-shadow: 0 4px 15px rgba(45, 90, 45, 0.4);
         }
         
         .btn-primary:hover {
-            background: linear-gradient(135deg, #32CD32, #228B22);
-            border-color: #90ee90;
+            background: linear-gradient(135deg, #4caf4c, #2d5a2d);
+            border-color: #7dd87d;
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(34, 139, 34, 0.5);
+            box-shadow: 0 6px 20px rgba(45, 90, 45, 0.6);
         }
         
         .btn-success {
-            background: linear-gradient(135deg, #2E7D32, #4CAF50);
+            background: linear-gradient(135deg, #1b5e20, #388e3c);
             color: white;
-            border: 2px solid rgba(144, 238, 144, 0.3);
-            box-shadow: 0 4px 15px rgba(46, 125, 50, 0.3);
+            border: 2px solid rgba(125, 216, 125, 0.4);
+            box-shadow: 0 4px 15px rgba(27, 94, 32, 0.4);
         }
         
         .btn-success:hover {
-            background: linear-gradient(135deg, #4CAF50, #2E7D32);
-            border-color: #90ee90;
+            background: linear-gradient(135deg, #388e3c, #1b5e20);
+            border-color: #7dd87d;
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(46, 125, 50, 0.5);
+            box-shadow: 0 6px 20px rgba(27, 94, 32, 0.6);
         }
         
         .btn-danger {
-            background: linear-gradient(135deg, #8B4513, #CD853F);
+            background: linear-gradient(135deg, #5d4037, #8d6e63);
             color: white;
-            border: 2px solid rgba(205, 133, 63, 0.3);
-            box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);
+            border: 2px solid rgba(141, 110, 99, 0.4);
+            box-shadow: 0 4px 15px rgba(93, 64, 55, 0.4);
         }
         
         .btn-danger:hover {
-            background: linear-gradient(135deg, #CD853F, #8B4513);
-            border-color: #DEB887;
+            background: linear-gradient(135deg, #8d6e63, #5d4037);
+            border-color: #a1887f;
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(139, 69, 19, 0.5);
+            box-shadow: 0 6px 20px rgba(93, 64, 55, 0.6);
         }
         
         .btn-warning {
-            background: linear-gradient(135deg, #DAA520, #FFD700);
-            color: #2d5a27;
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3);
+            background: linear-gradient(135deg, #bf8f00, #f9a825);
+            color: #1a2e1a;
+            border: 2px solid rgba(249, 168, 37, 0.4);
+            box-shadow: 0 4px 15px rgba(191, 143, 0, 0.4);
+            font-weight: bold;
         }
         
         .btn-warning:hover {
-            background: linear-gradient(135deg, #FFD700, #DAA520);
-            border-color: #FFD700;
+            background: linear-gradient(135deg, #f9a825, #bf8f00);
+            border-color: #fdd835;
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(218, 165, 32, 0.5);
+            box-shadow: 0 6px 20px rgba(191, 143, 0, 0.6);
         }
         
         .status {
@@ -233,18 +200,20 @@
         }
         
         .status.connected {
-            background: rgba(46, 125, 50, 0.3);
-            border: 2px solid #4CAF50;
+            background: rgba(27, 94, 32, 0.5);
+            border: 2px solid #4caf4c;
         }
         
         .status.disconnected {
-            background: rgba(139, 69, 19, 0.3);
-            border: 2px solid #CD853F;
+            background: rgba(93, 64, 55, 0.5);
+            border: 2px solid #8d6e63;
         }
         
         .status.setting-up {
-            background: rgba(218, 165, 32, 0.3);
-            border: 2px solid #FFD700;
+            background: rgba(191, 143, 0, 0.5);
+            border: 2px solid #f9a825;
+            color: #1a2e1a;
+            font-weight: bold;
         }
         
         .giveaway-controls {
@@ -265,10 +234,10 @@
         .entries-list {
             max-height: 400px;
             overflow-y: auto;
-            background: rgba(45, 90, 39, 0.4);
+            background: rgba(5, 12, 5, 0.95);
             border-radius: 8px;
             padding: 15px;
-            border: 1px solid rgba(144, 238, 144, 0.2);
+            border: 1px solid rgba(125, 216, 125, 0.4);
         }
         
         .entry-item {
@@ -330,19 +299,19 @@
         }
         
         .stat-card {
-            background: rgba(46, 125, 50, 0.2);
+            background: rgba(8, 18, 8, 0.9);
             padding: 20px;
             border-radius: 10px;
             text-align: center;
             backdrop-filter: blur(15px);
-            border: 2px solid rgba(144, 238, 144, 0.3);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            border: 2px solid rgba(125, 216, 125, 0.5);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
         }
         
         .stat-number {
             font-size: 2rem;
             font-weight: bold;
-            color: #90ee90;
+            color: #7dd87d;
         }
         
         .stat-label {
@@ -351,21 +320,21 @@
         }
         
         .error-message {
-            background: rgba(139, 69, 19, 0.3);
-            border: 1px solid #CD853F;
+            background: rgba(93, 64, 55, 0.6);
+            border: 1px solid #8d6e63;
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
-            color: #FFEAA7;
+            color: #ffcdd2;
         }
         
         .success-message {
-            background: rgba(46, 125, 50, 0.3);
-            border: 1px solid #4CAF50;
+            background: rgba(27, 94, 32, 0.6);
+            border: 1px solid #4caf4c;
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
-            color: #C8E6C9;
+            color: #c8e6c9;
         }
         
         .hidden {
@@ -387,9 +356,9 @@
         }
         
         .logout-btn {
-            background: rgba(139, 69, 19, 0.2);
-            color: #FFEAA7;
-            border: 1px solid rgba(205, 133, 63, 0.4);
+            background: rgba(93, 64, 55, 0.4);
+            color: #ffcdd2;
+            border: 1px solid rgba(141, 110, 99, 0.5);
             padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
@@ -398,8 +367,8 @@
         }
         
         .logout-btn:hover {
-            background: rgba(139, 69, 19, 0.4);
-            border-color: #CD853F;
+            background: rgba(93, 64, 55, 0.7);
+            border-color: #8d6e63;
         }
         
         @media (max-width: 768px) {
@@ -446,21 +415,17 @@
 
         <!-- Main App (shown when authenticated) -->
         <div class="app-content hidden" id="appContent">
-            <!-- User Info Panel -->
-            <div class="setup-panel">
-                <div class="user-info" id="userInfo">
-                    <!-- User details populated by JavaScript -->
-                </div>
-                
-                <div id="errorContainer"></div>
-                <div id="successContainer"></div>
-                
-                <button class="btn btn-primary" id="setupGiveawayBtn">🌟 Set Up My Giveaway</button>
-                <button class="logout-btn" id="logoutBtn" style="float: right;">Sign Out</button>
-            </div>
+            <div id="errorContainer"></div>
+            <div id="successContainer"></div>
 
             <div class="status disconnected" id="connectionStatus">
                 🌱 Click "Set Up My Giveaway" to create your channel points reward
+            </div>
+
+            <!-- Quick Setup Button -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <button class="btn btn-primary" id="setupGiveawayBtn" style="font-size: 1.2rem; padding: 15px 30px;">🌟 Set Up My Giveaway</button>
+                <button class="logout-btn" id="logoutBtn" style="margin-left: 20px;">Sign Out</button>
             </div>
 
             <div class="stats">
