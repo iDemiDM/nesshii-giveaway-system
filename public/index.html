@@ -1,3 +1,39 @@
+.login-panel {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .login-panel.hidden {
+            display: none;
+        }
+        
+        .twitch-login-btn {
+            background: linear-gradient(135deg, #2d5a2d, #4caf4c);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 12px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            box-shadow: 0 4px 15px rgba(45, 90, 45, 0.6);
+        }
+        
+        .twitch-login-btn:hover {
+            background: linear-gradient(135deg, #4caf4c, #2d5a2d);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 90, 45, 0.8);
+        }
+        
+        .twitch-logo {
+            width: 30px;
+            height: 30px;
+        }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -546,7 +582,8 @@
                 
                 const scopes = [
                     'channel:manage:redemptions',
-                    'channel:read:redemptions'
+                    'channel:read:redemptions', 
+                    'channel:manage:rewards'
                 ].join(' ');
                 
                 const authUrl = new URL('https://id.twitch.tv/oauth2/authorize');
@@ -611,7 +648,7 @@
                 const response = await this.makeApiRequest('/users');
                 this.userInfo = response.data[0];
                 this.isAuthenticated = true;
-                this.displayUserInfo();
+                // User info display removed since we simplified the interface
             }
             
             // Giveaway Setup
@@ -839,17 +876,7 @@
             showAppContent() {
                 document.getElementById('loginPanel').classList.add('hidden');
                 document.getElementById('appContent').classList.remove('hidden');
-            }
-            
-            displayUserInfo() {
-                const userInfoEl = document.getElementById('userInfo');
-                userInfoEl.innerHTML = `
-                    <img src="${this.userInfo.profile_image_url}" alt="${this.userInfo.display_name}" class="user-avatar">
-                    <div class="user-details">
-                        <h3>${this.userInfo.display_name}</h3>
-                        <p>Ready to set up giveaways • ${this.userInfo.view_count.toLocaleString()} total views</p>
-                    </div>
-                `;
+                // Simplified interface - no user info display needed
             }
             
             updateGiveawayControls() {
